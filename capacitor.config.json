@@ -1,0 +1,10 @@
+{
+  "appId": "com.ebsiwallet.app",
+  "appName": "ebsi-wallet",
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false
+    }
+  }
+}
