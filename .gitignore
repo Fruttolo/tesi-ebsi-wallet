@@ -14,3 +14,4 @@ ios/
 .gradle/
 build/
 *.log
+package-lock.json
