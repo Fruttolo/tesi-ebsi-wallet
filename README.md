@@ -16,7 +16,6 @@ The primary goal of the project is to create an Android wallet prototype capable
 2.  **Ensuring Privacy:** Implementing **Selective Disclosure** mechanisms, allowing the user to share only the strictly necessary information (e.g., age verification) without revealing sensitive personal data.
 3.  **VC Management:** Creating a structure for storing and managing Verifiable Credentials (VCs), such as academic and professional credentials.
 4.  **Security and Backup:** Implementing a completely offline wallet backup system using a **Seed Phrase** (e.g., BIP39 standard).
-5.  **Security Analysis:** Conducting an in-depth analysis (Threat Model and Security Analysis) of the chosen technology stack, especially concerning the use of React/Web Wrapper in a security-critical context.
 
 ## ⚙️ Proposed Technology Stack
 
