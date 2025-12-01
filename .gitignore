@@ -6,3 +6,11 @@ node_modules/
 .sourcemaps
 dist/
 android/
+ios/
+.capacitor/
+.env
+.env.local
+.DS_Store
+.gradle/
+build/
+*.log

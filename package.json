@@ -1,4 +1,30 @@
 {
+  "name": "tesi-ebsi-wallet-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:web": "vite build",
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "format": "prettier --write \"src/**/*.{js,jsx}\""
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@capacitor/core": "^5.0.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "prettier": "^3.0.0"
+  }
+}
+{
   "name": "capacitor-app",
   "version": "1.0.0",
   "description": "An Amazing Capacitor App",

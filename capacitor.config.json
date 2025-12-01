@@ -1,10 +1,6 @@
 {
-  "appId": "com.ebsiwallet.app",
-  "appName": "ebsi-wallet",
+  "appId": "io.tesi.ebsi.wallet",
+  "appName": "tesi-ebsi-wallet-app",
   "webDir": "dist",
-  "plugins": {
-    "SplashScreen": {
-      "launchAutoHide": false
-    }
-  }
+  "bundledWebRuntime": false
 }
