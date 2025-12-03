@@ -1,30 +1,20 @@
-import { util } from "@cef-ebsi/ebsi-did-resolver";
 import React, { useEffect, useState } from 'react'
+import { generateDid, getDid } from "./utils/Utils";
 
 export default function App() {
 
-  const [did, setDid] = useState("");
-
-  function generateDid() {
-    // create an array of 16 random bytes with react
-    const subjectIdentifierBytes = new Uint8Array(16);
-    window.crypto.getRandomValues(subjectIdentifierBytes);
-
-    const did = util.createDid(subjectIdentifierBytes);
-    setDid(did);
-  }
+  const [message, setMessage] = useState("");
 
   return (
     <div className="app-root">
       <header>
         <h1>DID Ebsi</h1>
       </header>
+      <p>
+        {message}
+      </p>
 
       <main>
-        <p>
-          {`Your generated DID is: ${did}`}
-        </p>
-
         <div className="card">
           <button
             onClick={() => {
@@ -33,6 +23,17 @@ export default function App() {
           >
             Generate New DID
           </button>
+          <button
+            style={{marginLeft: "10px"}}
+            onClick={() => {
+              getDid().then((did) => {
+                setMessage(did);
+              });
+            }}
+          >
+            Get DID
+          </button>
+
         </div>
       </main>
     </div>
