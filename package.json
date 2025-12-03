@@ -10,13 +10,17 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "run:android": "npm run build && npx cap copy android && npx cap run android"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
     "@capacitor/camera": "latest",
     "@capacitor/core": "^7.4.4",
     "@capacitor/splash-screen": "latest",
+    "@cef-ebsi/ebsi-did-resolver": "^4.1.0",
+    "@cef-ebsi/key-did-resolver": "^2.1.1",
+    "@cef-ebsi/trusted-nodes-list": "^1.0.1",
     "@vitejs/plugin-react": "^5.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
