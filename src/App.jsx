@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { generateDid, getDid } from "./utils/Utils";
+import { generateDid, generateDidLegacy, getDid } from "./utils/Utils";
 
 export default function App() {
 
