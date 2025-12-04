@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { generateDid, getDid } from "./utils/Utils";
 
 export default function App() {
@@ -10,19 +10,20 @@ export default function App() {
       <header>
         <h1>DID Ebsi</h1>
       </header>
-      <p>
-        {message}
-      </p>
 
       <main>
         <div className="card">
+
           <button
-            onClick={() => {
-              generateDid();
+            onClick={async () => {
+              await generateDid().then((res) => {
+                setMessage(res);
+              });
             }}
           >
             Generate New DID
           </button>
+
           <button
             style={{marginLeft: "10px"}}
             onClick={() => {
@@ -33,6 +34,17 @@ export default function App() {
           >
             Get DID
           </button>
+
+          <p
+            style={{
+              marginTop: "20px", 
+              padding: "10px",  
+              borderRadius: "5px", 
+              wordBreak: "break-all"
+            }}
+          >
+            {message}
+          </p>
 
         </div>
       </main>
