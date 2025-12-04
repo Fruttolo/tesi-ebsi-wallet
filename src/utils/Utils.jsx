@@ -2,10 +2,9 @@ import { util } from "@cef-ebsi/key-did-resolver";
 import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
 import { ES256Signer } from "did-jwt";
 import { createVerifiableCredentialJwt } from "@cef-ebsi/verifiable-credential";
-
-import { generateMnemonic, mnemonicToSeed, } from 'bip39';
-import { HDKey } from '@scure/bip32';
-import { createECDH } from 'node:crypto';
+import * as bip39 from 'bip39';
+import { ec as EC } from 'elliptic';
+import { Buffer } from "buffer";
 
 const PRIVATE_KEY_ID = import.meta.env.VITE_PRIVATE_KEY_ID || 'walletPrivateKey';
 const PUBLIC_KEY_ID = import.meta.env.VITE_PUBLIC_KEY_ID || 'walletPublicKey';
@@ -14,41 +13,36 @@ const DID_KEY_ID = import.meta.env.VITE_DID_KEY_ID || 'walletDid';
 const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || 'test';
 const HOST = import.meta.env.VITE_HOST || 'api-test.ebsi.eu';
 
+const hexToBase64url = (hex) => {
+    const buffer = Buffer.from(hex, 'hex');
+    return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+};
+
 export async function generateDid() {
     try {
 
-        const mnemonic = generateMnemonic(128);
+        const mnemonic = bip39.generateMnemonic(128);
         
         // transform the mnemonic into a private and public JWK key pair with EC P-256 curve
-        const seed = await mnemonicToSeed(mnemonic);
-        const hdKey = HDKey.fromMasterSeed(seed);
+        const seed = await bip39.mnemonicToSeed(mnemonic);
+        const ec = new EC('p256');
+        const key = ec.keyFromPrivate(seed.slice(0, 32));
+        
+        const privateJwk = {
+            kty: 'EC',
+            crv: 'P-256',
+            d: hexToBase64url(key.getPrivate().toString('hex').padStart(64, '0')),
+            x: hexToBase64url(key.getPublic().getX().toString('hex').padStart(64, '0')),
+            y: hexToBase64url(key.getPublic().getY().toString('hex').padStart(64, '0')),
+        };
+        const publicJwk = {
+            kty: 'EC',
+            crv: 'P-256',
+            x: hexToBase64url(key.getPublic().getX().toString('hex').padStart(64, '0')),
+            y: hexToBase64url(key.getPublic().getY().toString('hex').padStart(64, '0')),
+        };
 
-        const derivedKey = hdKey.derive("m/0'/0'/0'");
-        const privateKeyBuffer = derivedKey.privateKey;
-        
-        if (!privateKeyBuffer) {
-            throw new Error('Failed to derive private key from mnemonic');
-        }
-        
-        const keyObject = createECDH('P-256');
-        keyObject.from(privateKeyBuffer);
-
-        // 3. Esportazione in formato PKCS#8 (PEM) per essere compreso da jose
-        // Questo passaggio garantisce che tutte le proprietà (come la curva) siano incluse.
-        const privateKeyPem = keyObject.export({ type: 'pkcs8', format: 'pem' });
-        
-        // 4. Importazione in 'jose' per ottenere l'oggetto KeyLike
-        const keyLike = await importJWK(
-            { key: privateKeyPem, alg: 'ES256', crv: 'P-256' }, // La chiave PEM nel campo 'key'
-            'ES256' // Algoritmo per la chiave
-        );
-
-        // 5. Esportazione in formato JWK
-        const privateJwk = await exportJWK(keyLike);
-        
-        // Otteniamo la JWK Pubblica (per la verifica)
-        const publicKeyLike = keyLike.publicKey;
-        const publicJwk = await exportJWK(publicKeyLike);
+        console.log('Generated Key Pair:', { privateJwk, publicJwk });
 
         // Persist JWKs in secure storage as JSON strings
         await SecureStoragePlugin.set({ key: PRIVATE_KEY_ID, value: JSON.stringify(privateJwk) });
