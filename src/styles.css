@@ -14,3 +14,6 @@ main{padding:10px 0}
 .card{margin-top:18px;padding:18px;border-radius:8px;background:rgba(255,255,255,0.02);display:inline-block}
 button{background:linear-gradient(90deg,var(--accent),#7dd3fc);border:none;padding:10px 16px;border-radius:8px;color:#041027;font-weight:700;cursor:pointer}
 footer{margin-top:18px;color:var(--muted)}
+input[type="text"]{padding:10px;border-radius:8px;border:none;width:100%;max-width:400px;margin-top:8px;background:rgba(255,255,255,0.05);color:#e6eef6}
+input[type="text"]::placeholder{color:var(--muted)}
+input[type="text"]:focus{outline:none;background:rgba(255,255,255,0.1)}
