@@ -1,4 +1,5 @@
-import { generateMnemonic, mnemonicToSeed } from 'bip39';
+import { generateMnemonic, mnemonicToSeed } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { HDKey } from '@scure/bip32';
 import { p256 } from '@noble/curves/nist.js';
 import { util } from "@cef-ebsi/key-did-resolver";
@@ -29,7 +30,7 @@ export async function generateDid(mnemonic = null) {
     try {
 
         if (!mnemonic) {
-            mnemonic = generateMnemonic(128);
+            mnemonic = generateMnemonic(wordlist, 128);
         }
         
         const seed = await mnemonicToSeed(mnemonic);
