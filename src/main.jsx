@@ -2,15 +2,42 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/styles.css";
+import "./styles/animations.css";
+import "./styles/highContrast.css";
 import { BrowserRouter } from "react-router-dom";
+import { preventPullToRefresh } from "./utils/mobileUtils";
 
 import { Buffer } from "buffer";
 window.Buffer = Buffer;
 
+// Inizializza ottimizzazioni mobile
+preventPullToRefresh();
+
+// Previene zoom su doppio tap
+document.addEventListener(
+  "touchstart",
+  (e) => {
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  },
+  { passive: false }
+);
+
+// Gestione viewport per notch/safe areas
+if (window.visualViewport) {
+  const viewport = window.visualViewport;
+  const updateViewport = () => {
+    document.documentElement.style.setProperty("--viewport-height", `${viewport.height}px`);
+  };
+  viewport.addEventListener("resize", updateViewport);
+  updateViewport();
+}
+
 createRoot(document.getElementById("root")).render(
-	<React.StrictMode>
-		<BrowserRouter>
-			<App />
-		</BrowserRouter>
-	</React.StrictMode>
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
 );

@@ -1,12 +1,43 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>tesi-ebsi-wallet - Hello World</title>
-	</head>
-	<body>
-		<div id="root" class="app-root"></div>
-		<script type="module" src="/src/main.jsx"></script>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <!-- Viewport ottimizzato per mobile -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <!-- PWA Config -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0f172a" />
+
+    <!-- Content Security Policy -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="
+				default-src 'self';
+				script-src 'self' 'unsafe-inline' 'unsafe-eval';
+				style-src 'self' 'unsafe-inline';
+				img-src 'self' data: https:;
+				connect-src 'self' https://api-pilot.ebsi.eu https://api-conformance.ebsi.eu https://api.ebsi.eu;
+				font-src 'self' data:;
+				object-src 'none';
+				base-uri 'self';
+				form-action 'self';
+				frame-ancestors 'none';
+			"
+    />
+
+    <!-- Security Headers -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+
+    <title>EBSI Wallet</title>
+  </head>
+  <body>
+    <div id="root" class="app-root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
