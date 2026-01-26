@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Container, Typography, TextField, Button, Box, Alert, Paper } from "@mui/material";
 import { validateSeedPhrase } from "../utils/validation.js";
 import { mnemonicToSeed, validateMnemonic } from "../crypto/seedManager.js";
@@ -8,6 +9,7 @@ import { saveDID, saveDIDDocument, saveKeys } from "../storage/didStorage.js";
 import PageBase from "../components/PageBase.jsx";
 
 export default function ImportWallet() {
+  const navigate = useNavigate();
   const [mnemonic, setMnemonic] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -73,6 +75,9 @@ export default function ImportWallet() {
       // 9. Success
       setSuccess(true);
       setMnemonic(""); // Pulisci per sicurezza
+
+      localStorage.setItem("wallet_initialized", "true");
+      navigate("/home");
     } catch (err) {
       setError("Errore durante l'importazione: " + err.message);
     } finally {

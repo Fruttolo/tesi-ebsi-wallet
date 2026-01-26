@@ -27,7 +27,7 @@ export default function App() {
     const walletInitialized = localStorage.getItem("wallet_initialized");
 
     setIsFirstTime(!onboardingCompleted);
-    setHasWallet(!!walletInitialized);
+    setHasWallet(!walletInitialized);
   }, []);
 
   // Loading state

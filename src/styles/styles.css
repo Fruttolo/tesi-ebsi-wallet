@@ -208,6 +208,22 @@ footer {
   display: none;
 }
 
+/* QR Scanner - Background trasparente per camera */
+body.scanner-active {
+  background: transparent !important;
+  --background: transparent !important;
+}
+
+body.scanner-active #root,
+body.scanner-active .app-root {
+  background: transparent !important;
+}
+
+/* Nasconde tutto il contenuto quando lo scanner è attivo */
+body.scanner-active > *:not(#root) {
+  display: none;
+}
+
 @media (min-width: 768px) {
   .mobile-only {
     display: none;

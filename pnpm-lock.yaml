@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@capacitor-community/barcode-scanner':
+        specifier: ^4.0.1
+        version: 4.0.1(@capacitor/core@8.0.1)
       '@capacitor/android':
         specifier: ^8.0.1
         version: 8.0.1(@capacitor/core@8.0.1)
@@ -76,7 +79,7 @@ importers:
         version: 2.0.1
       '@vitejs/plugin-react':
         specifier: ^5.1.1
-        version: 5.1.2(vite@5.4.21(@types/node@25.0.10))
+        version: 5.1.2(vite@5.4.21(@types/node@25.0.10)(terser@5.46.0))
       base64-js:
         specifier: ^1.5.1
         version: 1.5.1
@@ -177,12 +180,15 @@ importers:
       rollup-plugin-visualizer:
         specifier: ^6.0.5
         version: 6.0.5(rollup@4.56.0)
+      terser:
+        specifier: ^5.46.0
+        version: 5.46.0
       vite:
         specifier: ^5.4.2
-        version: 5.4.21(@types/node@25.0.10)
+        version: 5.4.21(@types/node@25.0.10)(terser@5.46.0)
       vitest:
         specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))
+        version: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))(terser@5.46.0)
 
 packages:
 
@@ -294,6 +300,11 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@capacitor-community/barcode-scanner@4.0.1':
+    resolution: {integrity: sha512-acuhDU2mqskSeCIQMc5TGNnDszXXs4IqEES+3C2JDiq+MkJMTr+B2Dhq4k55hlkRFMOumMhlnbr2R9G6qyFPhw==}
+    peerDependencies:
+      '@capacitor/core': ^5.0.0
 
   '@capacitor/android@8.0.1':
     resolution: {integrity: sha512-Mrk2MFKSg9YA4BPLKm03wwFnGKcvzNBERUTcxjW1NkLrF6YhJwygAT69f/YGopFvOhhqdnDPsuZuASUfmpkSpw==}
@@ -896,6 +907,9 @@ packages:
     resolution: {integrity: sha512-bRISgCIjP20/tbWSPWMEi54QVPRZExkuD9lJL+UIxUKtwVJA8wW1Trb1jMs1RFXo1CBTNZ/5hpC9QvmKWdopKw==}
     engines: {node: '>=6.0.0'}
 
+  '@jridgewell/source-map@0.3.11':
+    resolution: {integrity: sha512-ZMp1V8ZFcPG5dIWnQLr3NSI1MiCU7UETdS/A0G8V/XWHvJv3ZsFqutJn1Y5RPmAPX6F3BiE397OqveU/9NCuIA==}
+
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
@@ -1392,6 +1406,18 @@ packages:
     resolution: {integrity: sha512-cQzWCtO6C8TQiYl1ruKNn2U6Ao4o4WBBcbL61yJl84x+j5sOWWFU9X7DpND8XZG3daDppSsigMdfAIl2upQBRw==}
     engines: {node: '>=10.0.0'}
 
+  '@zxing/browser@0.1.5':
+    resolution: {integrity: sha512-4Lmrn/il4+UNb87Gk8h1iWnhj39TASEHpd91CwwSJtY5u+wa0iH9qS0wNLAWbNVYXR66WmT5uiMhZ7oVTrKfxw==}
+    peerDependencies:
+      '@zxing/library': ^0.21.0
+
+  '@zxing/library@0.20.0':
+    resolution: {integrity: sha512-6Ev6rcqVjMakZFIDvbUf0dtpPGeZMTfyxYg4HkVWioWeN7cRcnUWT3bU6sdohc82O1nPXcjq6WiGfXX2Pnit6A==}
+    engines: {node: '>= 10.4.0'}
+
+  '@zxing/text-encoding@0.9.0':
+    resolution: {integrity: sha512-U/4aVJ2mxI0aDNI8Uq0wEhMgY+u4CNtEb0om3+y3+niDAsoTCOB33UF0sxpzqzdqXLqmvc+vZyAt4O8pPdfkwA==}
+
   abbrev@1.1.1:
     resolution: {integrity: sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==}
 
@@ -1803,6 +1829,9 @@ packages:
   commander@12.1.0:
     resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
     engines: {node: '>=18'}
+
+  commander@2.20.3:
+    resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
 
   commander@4.0.1:
     resolution: {integrity: sha512-IPF4ouhCP+qdlcmCedhxX4xiGBPyigb8v5NeUp+0LyhwLgxMqyp3S0vl7TAPfS/hiP7FC3caI/PB9lTmP8r1NA==}
@@ -3740,6 +3769,11 @@ packages:
     engines: {node: '>=10'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
 
+  terser@5.46.0:
+    resolution: {integrity: sha512-jTwoImyr/QbOWFFso3YoU3ik0jBBDJ6JTOQiy/J2YxVJdZCc+5u7skhNwiOR3FQIygFqVUPHl7qbbxtjW2K3Qg==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   through2@4.0.2:
     resolution: {integrity: sha512-iOqSav00cVxEEICeD7TjLB1sueEL+81Wpzp2bY17uZjZN0pWZPuo4suZ/61VujxmqSGFfgOcNuTZ85QJwNZQpw==}
 
@@ -3797,6 +3831,10 @@ packages:
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
     hasBin: true
+
+  ts-custom-error@3.3.1:
+    resolution: {integrity: sha512-5OX1tzOjxWEgsr/YEUWSuPrQ00deKLh6D7OTWcvNHm12/7QPyRh8SYpyWvA4IZv8H/+GQWQEh/kwo95Q9OVW1A==}
+    engines: {node: '>=14.0.0'}
 
   ts-typed-json@0.3.2:
     resolution: {integrity: sha512-Tdu3BWzaer7R5RvBIJcg9r8HrTZgpJmsX+1meXMJzYypbkj8NK2oJN0yvm4Dp/Iv6tzFa/L5jKRmEVTga6K3nA==}
@@ -4352,6 +4390,12 @@ snapshots:
       '@babel/helper-validator-identifier': 7.28.5
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@capacitor-community/barcode-scanner@4.0.1(@capacitor/core@8.0.1)':
+    dependencies:
+      '@capacitor/core': 8.0.1
+      '@zxing/browser': 0.1.5(@zxing/library@0.20.0)
+      '@zxing/library': 0.20.0
 
   '@capacitor/android@8.0.1(@capacitor/core@8.0.1)':
     dependencies:
@@ -4918,6 +4962,11 @@ snapshots:
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
+  '@jridgewell/source-map@0.3.11':
+    dependencies:
+      '@jridgewell/gen-mapping': 0.3.13
+      '@jridgewell/trace-mapping': 0.3.31
+
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@jridgewell/trace-mapping@0.3.31':
@@ -5337,7 +5386,7 @@ snapshots:
 
   '@types/validator@13.15.10': {}
 
-  '@vitejs/plugin-react@5.1.2(vite@5.4.21(@types/node@25.0.10))':
+  '@vitejs/plugin-react@5.1.2(vite@5.4.21(@types/node@25.0.10)(terser@5.46.0))':
     dependencies:
       '@babel/core': 7.28.6
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.28.6)
@@ -5345,7 +5394,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.53
       '@types/babel__core': 7.20.5
       react-refresh: 0.18.0
-      vite: 5.4.21(@types/node@25.0.10)
+      vite: 5.4.21(@types/node@25.0.10)(terser@5.46.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -5361,7 +5410,7 @@ snapshots:
       obug: 2.1.1
       std-env: 3.10.0
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))
+      vitest: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))(terser@5.46.0)
 
   '@vitest/expect@4.0.18':
     dependencies:
@@ -5372,13 +5421,13 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
-  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.0.10))':
+  '@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.0.10)(terser@5.46.0))':
     dependencies:
       '@vitest/spy': 4.0.18
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@25.0.10)
+      vite: 7.3.1(@types/node@25.0.10)(terser@5.46.0)
 
   '@vitest/pretty-format@4.0.18':
     dependencies:
@@ -5406,7 +5455,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vitest: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))
+      vitest: 4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))(terser@5.46.0)
 
   '@vitest/utils@4.0.18':
     dependencies:
@@ -5414,6 +5463,21 @@ snapshots:
       tinyrainbow: 3.0.3
 
   '@xmldom/xmldom@0.8.11': {}
+
+  '@zxing/browser@0.1.5(@zxing/library@0.20.0)':
+    dependencies:
+      '@zxing/library': 0.20.0
+    optionalDependencies:
+      '@zxing/text-encoding': 0.9.0
+
+  '@zxing/library@0.20.0':
+    dependencies:
+      ts-custom-error: 3.3.1
+    optionalDependencies:
+      '@zxing/text-encoding': 0.9.0
+
+  '@zxing/text-encoding@0.9.0':
+    optional: true
 
   abbrev@1.1.1:
     optional: true
@@ -5835,6 +5899,8 @@ snapshots:
     optional: true
 
   commander@12.1.0: {}
+
+  commander@2.20.3: {}
 
   commander@4.0.1: {}
 
@@ -8076,6 +8142,13 @@ snapshots:
       mkdirp: 1.0.4
       yallist: 4.0.0
 
+  terser@5.46.0:
+    dependencies:
+      '@jridgewell/source-map': 0.3.11
+      acorn: 8.15.0
+      commander: 2.20.3
+      source-map-support: 0.5.21
+
   through2@4.0.2:
     dependencies:
       readable-stream: 3.6.2
@@ -8125,6 +8198,8 @@ snapshots:
       punycode: 2.3.1
 
   tree-kill@1.2.2: {}
+
+  ts-custom-error@3.3.1: {}
 
   ts-typed-json@0.3.2:
     optional: true
@@ -8275,7 +8350,7 @@ snapshots:
       core-util-is: 1.0.2
       extsprintf: 1.3.0
 
-  vite@5.4.21(@types/node@25.0.10):
+  vite@5.4.21(@types/node@25.0.10)(terser@5.46.0):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.6
@@ -8283,8 +8358,9 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.0.10
       fsevents: 2.3.3
+      terser: 5.46.0
 
-  vite@7.3.1(@types/node@25.0.10):
+  vite@7.3.1(@types/node@25.0.10)(terser@5.46.0):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -8295,11 +8371,12 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.0.10
       fsevents: 2.3.3
+      terser: 5.46.0
 
-  vitest@4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1)):
+  vitest@4.0.18(@types/node@25.0.10)(@vitest/ui@4.0.18)(jsdom@27.4.0(@noble/hashes@2.0.1))(terser@5.46.0):
     dependencies:
       '@vitest/expect': 4.0.18
-      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@25.0.10))
+      '@vitest/mocker': 4.0.18(vite@7.3.1(@types/node@25.0.10)(terser@5.46.0))
       '@vitest/pretty-format': 4.0.18
       '@vitest/runner': 4.0.18
       '@vitest/snapshot': 4.0.18
@@ -8316,7 +8393,7 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.3.1(@types/node@25.0.10)
+      vite: 7.3.1(@types/node@25.0.10)(terser@5.46.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.0.10
