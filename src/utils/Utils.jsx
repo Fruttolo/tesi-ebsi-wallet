@@ -1,4 +1,8 @@
-import { generateMnemonic, mnemonicToSeed, validateMnemonic } from "@scure/bip39";
+import {
+	generateMnemonic,
+	mnemonicToSeed,
+	validateMnemonic,
+} from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { HDKey } from "@scure/bip32";
 import { p256 } from "@noble/curves/nist.js";
@@ -14,49 +18,49 @@ const ENVIRONMENT = import.meta.env.VITE_ENVIRONMENT || "test";
 const HOST = import.meta.env.VITE_HOST || "api-test.ebsi.eu";
 // Security helper functions
 function zeroBuffer(buffer) {
-    if (buffer && buffer.fill) {
-        buffer.fill(0);
-    }
+	if (buffer && buffer.fill) {
+		buffer.fill(0);
+	}
 }
 
 function sanitizeError(error) {
-    // Rimuove informazioni sensibili dagli errori
-    if (error && error.message) {
-        // Non esporre chiavi, did completi o dati sensibili
-        const sanitized = error.message
-            .replace(/did:key:[A-Za-z0-9_-]+/g, 'did:key:[REDACTED]')
-            .replace(/"d"\s*:\s*"[^"]+"/g, '"d":"[REDACTED]"')
-            .replace(/privateKey[^:]*:\s*[^,}]+/gi, 'privateKey:[REDACTED]');
-        return new Error(sanitized);
-    }
-    return new Error('An error occurred during cryptographic operation');
+	// Rimuove informazioni sensibili dagli errori
+	if (error && error.message) {
+		// Non esporre chiavi, did completi o dati sensibili
+		const sanitized = error.message
+			.replace(/did:key:[A-Za-z0-9_-]+/g, "did:key:[REDACTED]")
+			.replace(/"d"\s*:\s*"[^"]+"/g, '"d":"[REDACTED]"')
+			.replace(/privateKey[^:]*:\s*[^,}]+/gi, "privateKey:[REDACTED]");
+		return new Error(sanitized);
+	}
+	return new Error("An error occurred during cryptographic operation");
 }
 
 function validateMnemonicInput(mnemonic) {
-    if (!mnemonic || typeof mnemonic !== 'string') {
-        return false;
-    }
-    // Verifica che sia un mnemonic valido usando la libreria
-    return validateMnemonic(mnemonic, wordlist);
+	if (!mnemonic || typeof mnemonic !== "string") {
+		return false;
+	}
+	// Verifica che sia un mnemonic valido usando la libreria
+	return validateMnemonic(mnemonic, wordlist);
 }
 
 function verifyStorageIntegrity(storedValue, expectedType) {
-    if (!storedValue) {
-        throw new Error('Stored value is null or undefined');
-    }
-    
-    try {
-        if (expectedType === 'jwk') {
-            const jwk = JSON.parse(storedValue);
-            if (!jwk.kty || !jwk.crv || !jwk.x || !jwk.y) {
-                throw new Error('Invalid JWK structure');
-            }
-            return jwk;
-        }
-        return storedValue;
-    } catch (err) {
-        throw new Error('Storage integrity check failed: corrupted data');
-    }
+	if (!storedValue) {
+		throw new Error("Stored value is null or undefined");
+	}
+
+	try {
+		if (expectedType === "jwk") {
+			const jwk = JSON.parse(storedValue);
+			if (!jwk.kty || !jwk.crv || !jwk.x || !jwk.y) {
+				throw new Error("Invalid JWK structure");
+			}
+			return jwk;
+		}
+		return storedValue;
+	} catch (err) {
+		throw new Error("Storage integrity check failed: corrupted data");
+	}
 }
 function uint8ToBase64Url(bytes) {
 	// compatibile browser + node
