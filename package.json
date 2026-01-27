@@ -10,7 +10,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "android": "pnpm build && npx cap sync android && npx cap run android",
+    "android": "vite build --mode development && npx cap sync android && npx cap run android",
+    "android:prod": "pnpm build && npx cap sync android && npx cap run android",
     "android:init": "npx cap add android && npx cap sync androidcopy android",
     "build": "vite build",
     "preview": "vite preview",
