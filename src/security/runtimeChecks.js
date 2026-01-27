@@ -55,7 +55,7 @@ export class RuntimeSecurity {
 
       return { safe: true };
     } catch (error) {
-      console.error("Runtime security check failed:", error);
+      console.error("APP-EBSI: Runtime security check failed:", error);
       return {
         safe: false,
         reason: `Security check error: ${error.message}`,
@@ -83,7 +83,7 @@ export class RuntimeSecurity {
 
       return checks.some((result) => result === true);
     } catch (error) {
-      console.error("Root check failed:", error);
+      console.error("APP-EBSI: Root check failed:", error);
       return false;
     }
   }
@@ -105,7 +105,7 @@ export class RuntimeSecurity {
       // In produzione dovrebbe essere false
       return false;
     } catch (error) {
-      console.error("Debugger check failed:", error);
+      console.error("APP-EBSI: Debugger check failed:", error);
       return false;
     }
   }
@@ -119,7 +119,7 @@ export class RuntimeSecurity {
       const info = await Device.getInfo();
       return info.isVirtual || false;
     } catch (error) {
-      console.error("Emulator check failed:", error);
+      console.error("APP-EBSI: Emulator check failed:", error);
       return false;
     }
   }
@@ -152,9 +152,9 @@ export class RuntimeSecurity {
       // Dovrebbe impedire screenshot/screen recording
       // Richiede plugin: cordova-plugin-prevent-screenshot
 
-      console.log("Screen security enabled");
+      console.log("APP-EBSI: Screen security enabled");
     } catch (error) {
-      console.error("Failed to setup screen security:", error);
+      console.error("APP-EBSI: Failed to setup screen security:", error);
     }
   }
 
@@ -244,7 +244,7 @@ export class RuntimeSecurity {
 
       return true;
     } catch (error) {
-      console.error("App integrity check failed:", error);
+      console.error("APP-EBSI: App integrity check failed:", error);
       return false;
     }
   }

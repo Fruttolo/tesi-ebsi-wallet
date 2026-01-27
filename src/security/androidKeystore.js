@@ -37,7 +37,7 @@ export class AndroidKeystore {
     try {
       await SecureStoragePlugin.set({ key, value });
     } catch (error) {
-      console.error("Keystore set failed:", error);
+      console.error("APP-EBSI: Keystore set failed:", error);
       throw new Error(`Failed to store ${key} in Keystore`);
     }
   }
@@ -59,7 +59,7 @@ export class AndroidKeystore {
       if (error.message?.includes("not found")) {
         return null;
       }
-      console.error("Keystore get failed:", error);
+      console.error("APP-EBSI: Keystore get failed:", error);
       throw error;
     }
   }
@@ -77,7 +77,7 @@ export class AndroidKeystore {
     try {
       await SecureStoragePlugin.remove({ key });
     } catch (error) {
-      console.error("Keystore remove failed:", error);
+      console.error("APP-EBSI: Keystore remove failed:", error);
     }
   }
 
@@ -94,7 +94,7 @@ export class AndroidKeystore {
     try {
       await SecureStoragePlugin.clear();
     } catch (error) {
-      console.error("Keystore clear failed:", error);
+      console.error("APP-EBSI: Keystore clear failed:", error);
     }
   }
 
@@ -166,7 +166,7 @@ export class BiometricAuth {
       // return result.verified;
       return false;
     } catch (error) {
-      console.error("Biometric auth failed:", error);
+      console.error("APP-EBSI: Biometric auth failed:", error);
       return false;
     }
   }

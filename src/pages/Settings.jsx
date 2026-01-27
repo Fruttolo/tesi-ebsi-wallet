@@ -35,28 +35,28 @@ export default function Settings() {
       title: "Backup Seed Phrase",
       subtitle: "Visualizza e salva la tua seed phrase",
       color: "warning.main",
-      onClick: () => console.log("Backup seed"),
+      onClick: () => console.log("APP-EBSI: Backup seed"),
     },
     {
       icon: SecurityIcon,
       title: "Sicurezza",
       subtitle: "PIN, biometria e opzioni di sicurezza",
       color: "error.main",
-      onClick: () => console.log("Sicurezza"),
+      onClick: () => console.log("APP-EBSI: Sicurezza"),
     },
     {
       icon: FingerprintIcon,
       title: "Gestione DID",
       subtitle: "Visualizza e gestisci il tuo DID",
       color: "primary.main",
-      onClick: () => console.log("Gestione DID"),
+      onClick: () => console.log("APP-EBSI: Gestione DID"),
     },
     {
       icon: InfoIcon,
       title: "Info App",
       subtitle: "Versione e informazioni tecniche",
       color: "info.main",
-      onClick: () => console.log("Info app"),
+      onClick: () => console.log("APP-EBSI: Info app"),
     },
   ];
 

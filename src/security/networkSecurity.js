@@ -38,7 +38,7 @@ export class NetworkSecurity {
     // Placeholder - richiede plugin nativo
     // Plugin: cordova-plugin-advanced-http
 
-    console.log("Certificate pinning configured for EBSI domains");
+    console.log("APP-EBSI: Certificate pinning configured for EBSI domains");
   }
 
   /**
@@ -52,7 +52,7 @@ export class NetworkSecurity {
 
       // Solo HTTPS
       if (urlObj.protocol !== "https:") {
-        console.error("HTTP not allowed:", url);
+        console.error("APP-EBSI: HTTP not allowed:", url);
         return false;
       }
 
@@ -68,7 +68,7 @@ export class NetworkSecurity {
 
       return true;
     } catch (error) {
-      console.error("Invalid URL:", url, error);
+      console.error("APP-EBSI: Invalid URL:", url, error);
       return false;
     }
   }
@@ -132,7 +132,7 @@ export class NetworkSecurity {
    */
   static verifyResponse(response, publicKey) {
     if (!response.signature || !response.timestamp || !response.nonce) {
-      console.error("Missing signature fields");
+      console.error("APP-EBSI: Missing signature fields");
       return false;
     }
 
@@ -164,12 +164,12 @@ export class NetworkSecurity {
     const MAX_AGE = 5 * 60 * 1000;
 
     if (age < 0) {
-      console.error("Timestamp in the future");
+      console.error("APP-EBSI: Timestamp in the future");
       return false;
     }
 
     if (age > MAX_AGE) {
-      console.error("Request too old:", age, "ms");
+      console.error("APP-EBSI: Request too old:", age, "ms");
       return false;
     }
 
@@ -188,7 +188,7 @@ export class NetworkSecurity {
 
     // Controlla se già usato
     if (cache.has(nonce)) {
-      console.error("Nonce already used:", nonce);
+      console.error("APP-EBSI: Nonce already used:", nonce);
       return false;
     }
 

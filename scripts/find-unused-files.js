@@ -110,7 +110,7 @@ if (fs.existsSync(indexHtml)) {
 }
 
 // Analizza tutti i file per trovare le dipendenze
-console.log("Analizzando dipendenze...\n");
+console.log("APP-EBSI: Analizzando dipendenze...\n");
 const fileQueue = [...usedFiles];
 const processed = new Set();
 
@@ -132,9 +132,9 @@ while (fileQueue.length > 0) {
 // Trova file non usati
 const unusedFiles = allFiles.filter((f) => !usedFiles.has(f));
 
-console.log("=== FILE NON UTILIZZATI ===\n");
+console.log("APP-EBSI: === FILE NON UTILIZZATI ===\n");
 if (unusedFiles.length === 0) {
-  console.log("✅ Tutti i file sono utilizzati!\n");
+  console.log("APP-EBSI: ✅ Tutti i file sono utilizzati!\n");
 } else {
   unusedFiles.sort();
   for (const file of unusedFiles) {

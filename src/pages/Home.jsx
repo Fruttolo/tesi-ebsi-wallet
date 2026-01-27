@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Grid, Card, CardContent, Typography, Box, Chip, Avatar, Button } from "@mui/material";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  Avatar,
+  Button,
+  Alert,
+} from "@mui/material";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
@@ -15,12 +25,21 @@ import { getDID } from "../storage/didStorage";
  */
 export default function Home() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [did, setDid] = useState("");
   const [credentialsCount, setCredentialsCount] = useState(0);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     loadWalletInfo();
-  }, []);
+
+    // Gestisci eventuali errori passati tramite state
+    if (location.state?.error) {
+      setError(location.state.error);
+      // Pulisci lo state dopo aver mostrato l'errore
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const loadWalletInfo = async () => {
     try {
@@ -30,7 +49,7 @@ export default function Home() {
       // TODO: Caricare numero credenziali dal vcManager
       setCredentialsCount(0);
     } catch (error) {
-      console.error("Errore caricamento info wallet:", error);
+      console.error("APP-EBSI: Errore caricamento info wallet:", error);
     }
   };
 
@@ -47,7 +66,7 @@ export default function Home() {
         position: "bottom",
       });
     } catch (error) {
-      console.error("Errore durante la copia del DID:", error);
+      console.error("APP-EBSI: Errore durante la copia del DID:", error);
       await Toast.show({
         text: "Errore durante la copia",
         duration: "short",
@@ -106,6 +125,13 @@ export default function Home() {
 
   return (
     <PageBase title="Il Tuo Wallet">
+      {/* Messaggio di errore se presente */}
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
       {/* Info DID Card */}
       <Card
         sx={{

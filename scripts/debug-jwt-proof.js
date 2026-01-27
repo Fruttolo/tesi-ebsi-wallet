@@ -52,9 +52,9 @@ function decodeJWT(jwt) {
 function verifyJWTManually(jwt, publicKeyJwk) {
   const { header, payload, signature, signingInput } = decodeJWT(jwt);
 
-  console.log("\n=== JWT Decoded ===");
-  console.log("Header:", JSON.stringify(header, null, 2));
-  console.log("Payload:", JSON.stringify(payload, null, 2));
+  console.log("APP-EBSI: \n=== JWT Decoded ===");
+  console.log("APP-EBSI: Header:", JSON.stringify(header, null, 2));
+  console.log("APP-EBSI: Payload:", JSON.stringify(payload, null, 2));
 
   // Verifica algoritmo
   if (header.alg !== "ES256") {
@@ -65,19 +65,19 @@ function verifyJWTManually(jwt, publicKeyJwk) {
   const messageBytes = new TextEncoder().encode(signingInput);
   const messageHash = sha256(messageBytes);
 
-  console.log("\n=== Signature Verification ===");
-  console.log("Message hash (hex):", Buffer.from(messageHash).toString("hex"));
+  console.log("APP-EBSI: \n=== Signature Verification ===");
+  console.log("APP-EBSI: Message hash (hex):", Buffer.from(messageHash).toString("hex"));
 
   // Decode signature
   const signatureBytes = base64urlToBytes(signature);
-  console.log("Signature length:", signatureBytes.length);
+  console.log("APP-EBSI: Signature length:", signatureBytes.length);
 
   // Ricostruisci chiave pubblica da JWK
   const x = base64urlToBytes(publicKeyJwk.x);
   const y = base64urlToBytes(publicKeyJwk.y);
 
-  console.log("Public key X length:", x.length);
-  console.log("Public key Y length:", y.length);
+  console.log("APP-EBSI: Public key X length:", x.length);
+  console.log("APP-EBSI: Public key Y length:", y.length);
 
   // Crea chiave pubblica uncompressed (0x04 + x + y)
   const publicKeyBytes = new Uint8Array(1 + x.length + y.length);
@@ -85,14 +85,14 @@ function verifyJWTManually(jwt, publicKeyJwk) {
   publicKeyBytes.set(x, 1);
   publicKeyBytes.set(y, 1 + x.length);
 
-  console.log("Public key bytes length:", publicKeyBytes.length);
-  console.log("Public key (hex):", Buffer.from(publicKeyBytes).toString("hex"));
+  console.log("APP-EBSI: Public key bytes length:", publicKeyBytes.length);
+  console.log("APP-EBSI: Public key (hex):", Buffer.from(publicKeyBytes).toString("hex"));
 
   // Verifica firma con P-256
   const isValid = p256.verify(signatureBytes, messageHash, publicKeyBytes);
 
-  console.log("\n=== Verification Result ===");
-  console.log("Signature valid:", isValid);
+  console.log("APP-EBSI: \n=== Verification Result ===");
+  console.log("APP-EBSI: Signature valid:", isValid);
 
   return isValid;
 }
@@ -161,63 +161,66 @@ async function createProofJWTManual(issuerDid, audience, nonce, privateJwk) {
 }
 
 async function main() {
-  console.log("=== JWT Proof Debug Script ===\n");
+  console.log("APP-EBSI: === JWT Proof Debug Script ===\n");
 
   // 1. Genera wallet
-  console.log("1. Generating wallet...");
+  console.log("APP-EBSI: 1. Generating wallet...");
   const mnemonic = generateMnemonic(128);
   const seed = await mnemonicToSeed(mnemonic);
   const privateKey = derivePrivateKey(seed);
   const { privateJwk, publicJwk } = createJWK(privateKey);
 
-  console.log("Private JWK:", JSON.stringify({ ...privateJwk, d: "[REDACTED]" }, null, 2));
-  console.log("Public JWK:", JSON.stringify(publicJwk, null, 2));
+  console.log(
+    "APP-EBSI: Private JWK:",
+    JSON.stringify({ ...privateJwk, d: "[REDACTED]" }, null, 2)
+  );
+  console.log("APP-EBSI: Public JWK:", JSON.stringify(publicJwk, null, 2));
 
   // 2. Genera DID
-  console.log("\n2. Generating DID...");
+  console.log("APP-EBSI: \n2. Generating DID...");
   const did = generateDID(publicJwk);
-  console.log("DID:", did);
+  console.log("APP-EBSI: DID:", did);
 
   const didDocument = createDIDDocument(did, publicJwk);
-  console.log("DID Document:");
+  console.log("APP-EBSI: DID Document:");
   console.log(JSON.stringify(didDocument, null, 2));
 
   // 3. Ottieni key ID
-  console.log("\n3. Getting Key ID...");
+  console.log("APP-EBSI: \n3. Getting Key ID...");
   const keyId = getKeyIdFromDID(did);
-  console.log("Key ID (kid):", keyId);
+  console.log("APP-EBSI: Key ID (kid):", keyId);
 
   // Verifica che il keyId corrisponda al verificationMethod
   const vmId = didDocument.verificationMethod[0].id;
-  console.log("Verification Method ID:", vmId);
-  console.log("Kid matches VM ID:", keyId === vmId);
+  console.log("APP-EBSI: Verification Method ID:", vmId);
+  console.log("APP-EBSI: Kid matches VM ID:", keyId === vmId);
 
   // 4. Crea JWT Proof
-  console.log("\n4. Creating JWT Proof...");
+  console.log("APP-EBSI: \n4. Creating JWT Proof...");
   const audience = "https://api-conformance.ebsi.eu";
   const nonce = "test-nonce-12345";
 
   const proofJWT = await createProofJWTManual(did, audience, nonce, privateJwk);
-  console.log("\nJWT Proof:");
+  console.log("APP-EBSI: \nJWT Proof:");
   console.log(proofJWT);
 
   // 5. Verifica JWT
-  console.log("\n5. Verifying JWT...");
+  console.log("APP-EBSI: \n5. Verifying JWT...");
   try {
     const isValid = verifyJWTManually(proofJWT, publicJwk);
 
     if (isValid) {
-      console.log("\n✅ SUCCESS: JWT Proof is valid!");
+      console.log("APP-EBSI: \n✅ SUCCESS: JWT Proof is valid!");
     } else {
-      console.log("\n❌ FAILURE: JWT Proof signature is invalid!");
+      console.log("APP-EBSI: \n❌ FAILURE: JWT Proof signature is invalid!");
     }
   } catch (error) {
-    console.error("\n❌ ERROR during verification:", error.message);
+    console.error("APP-EBSI: \n❌ ERROR during verification:", error.message);
     console.error(error.stack);
   }
 }
 
 main().catch((error) => {
-  console.error("Fatal error:", error);
+  console.error("APP-EBSI: Fatal error:", error);
   process.exit(1);
 });

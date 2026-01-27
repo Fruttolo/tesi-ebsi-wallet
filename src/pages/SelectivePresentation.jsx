@@ -34,7 +34,7 @@ export default function SelectivePresentation({ credential, onComplete }) {
         onComplete(vp);
       }
     } catch (err) {
-      console.error("Error creating presentation:", err);
+      console.error("APP-EBSI: Error creating presentation:", err);
       setError(err.message || "Errore nella creazione della presentazione");
     } finally {
       setLoading(false);

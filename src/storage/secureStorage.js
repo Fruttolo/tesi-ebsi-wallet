@@ -45,7 +45,7 @@ export async function getSecure(key, password) {
       try {
         return await decrypt(result.value, password);
       } catch (error) {
-        console.error("Decryption failed:", error.message);
+        console.error("APP-EBSI: Decryption failed:", error.message);
         throw new Error("Wrong password or corrupted data");
       }
     }
@@ -86,7 +86,7 @@ export async function clearAllSecure() {
   try {
     await SecureStoragePlugin.clear();
   } catch (error) {
-    console.error("Error clearing secure storage:", error);
+    console.error("APP-EBSI: Error clearing secure storage:", error);
     throw error;
   }
 }

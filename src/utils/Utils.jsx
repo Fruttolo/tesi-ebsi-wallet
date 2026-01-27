@@ -150,7 +150,7 @@ export async function generateDid(mnemonic = null) {
     return mnemonic;
   } catch (err) {
     // Log sanitizzato senza esporre dati sensibili
-    console.error("generateDid error:", sanitizeError(err).message);
+    console.error("APP-EBSI: generateDid error:", sanitizeError(err).message);
     throw sanitizeError(err);
   } finally {
     // Zero out sensitive data from memory
@@ -180,7 +180,7 @@ export async function getDid() {
 
     return did;
   } catch (err) {
-    console.error("getDid error:", sanitizeError(err).message);
+    console.error("APP-EBSI: getDid error:", sanitizeError(err).message);
     throw sanitizeError(err);
   }
 }
@@ -203,7 +203,7 @@ export async function getPublicKeyJwk() {
 
     return publicJwk;
   } catch (err) {
-    console.error("getPublicKeyJwk error:", sanitizeError(err).message);
+    console.error("APP-EBSI: getPublicKeyJwk error:", sanitizeError(err).message);
     throw sanitizeError(err);
   }
 }

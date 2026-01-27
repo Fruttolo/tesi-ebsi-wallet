@@ -42,7 +42,7 @@ export async function resolveDID(did, environment = "pilot") {
 
     return didDocument;
   } catch (error) {
-    console.error("Error resolving DID:", error);
+    console.error("APP-EBSI: Error resolving DID:", error);
     throw error;
   }
 }

@@ -62,7 +62,7 @@ export default function PresentationRequest() {
     setError("");
 
     try {
-      console.log("Parsing Presentation Request URI:", uri);
+      console.log("APP-EBSI: Parsing Presentation Request URI:", uri);
 
       // Parse dell'URI openid4vp:// o openid://
       const url = new URL(uri);
@@ -73,11 +73,11 @@ export default function PresentationRequest() {
         params[key] = value;
       });
 
-      console.log("Parametri estratti:", params);
+      console.log("APP-EBSI: Parametri estratti:", params);
 
       // Caso 1: request_uri - scarica la request da un endpoint
       if (params.request_uri) {
-        console.log("Scaricamento Presentation Request da:", params.request_uri);
+        console.log("APP-EBSI: Scaricamento Presentation Request da:", params.request_uri);
         const response = await fetch(params.request_uri);
         if (!response.ok) {
           throw new Error(`Errore nel download della presentation request: ${response.statusText}`);
@@ -88,7 +88,7 @@ export default function PresentationRequest() {
       }
       // Caso 2: request JWT - decodifica il JWT
       else if (params.request) {
-        console.log("Decodifica JWT request");
+        console.log("APP-EBSI: Decodifica JWT request");
         const decodedRequest = decodeJWT(params.request);
         setPresentationRequest(decodedRequest);
         await processPresentationRequest(decodedRequest);
@@ -101,7 +101,7 @@ export default function PresentationRequest() {
 
       setLoading(false);
     } catch (err) {
-      console.error("Errore parsing presentation request:", err);
+      console.error("APP-EBSI: Errore parsing presentation request:", err);
       setError(err.message || "Errore durante il parsing della presentation request");
       setLoading(false);
     }
@@ -128,7 +128,7 @@ export default function PresentationRequest() {
    */
   const processPresentationRequest = async (request) => {
     try {
-      console.log("Processing Presentation Request:", request);
+      console.log("APP-EBSI: Processing Presentation Request:", request);
 
       // Estrai informazioni sul verifier
       const verifier = {
@@ -184,7 +184,7 @@ export default function PresentationRequest() {
         throw new Error("Presentation definition non trovata");
       }
 
-      console.log("Presentation Definition:", presentationDefinition);
+      console.log("APP-EBSI: Presentation Definition:", presentationDefinition);
 
       // Trova le credenziali che matchano
       await findMatchingCredentials(presentationDefinition);
@@ -200,7 +200,7 @@ export default function PresentationRequest() {
     try {
       // Carica tutte le credenziali dal wallet
       const storedCredentials = await getStoredCredentials();
-      console.log("Credenziali nel wallet:", storedCredentials);
+      console.log("APP-EBSI: Credenziali nel wallet:", storedCredentials);
 
       if (!storedCredentials || storedCredentials.length === 0) {
         setError("Nessuna credenziale disponibile nel wallet");
@@ -209,7 +209,7 @@ export default function PresentationRequest() {
 
       // Input descriptors dalla presentation definition
       const inputDescriptors = presentationDefinition.input_descriptors || [];
-      console.log("Input descriptors richiesti:", inputDescriptors);
+      console.log("APP-EBSI: Input descriptors richiesti:", inputDescriptors);
 
       // Matcha le credenziali
       const matching = [];
@@ -246,7 +246,7 @@ export default function PresentationRequest() {
         }
       }
 
-      console.log("Credenziali matching trovate:", matching);
+      console.log("APP-EBSI: Credenziali matching trovate:", matching);
 
       if (matching.length === 0) {
         setError("Nessuna credenziale nel wallet corrisponde alla richiesta del verifier");
@@ -273,7 +273,7 @@ export default function PresentationRequest() {
       }
       setSelectedCredentials(autoSelected);
     } catch (err) {
-      console.error("Errore ricerca credenziali:", err);
+      console.error("APP-EBSI: Errore ricerca credenziali:", err);
       throw new Error(`Errore nella ricerca delle credenziali: ${err.message}`);
     }
   };
@@ -290,7 +290,10 @@ export default function PresentationRequest() {
         throw new Error("Seleziona almeno una credenziale da presentare");
       }
 
-      console.log("Creazione Verifiable Presentation con credenziali:", selectedCredentials);
+      console.log(
+        "APP-EBSI: Creazione Verifiable Presentation con credenziali:",
+        selectedCredentials
+      );
 
       // Recupera le credenziali selezionate
       const credentials = availableCredentials.filter((c) => selectedCredentials.includes(c.id));
@@ -302,7 +305,7 @@ export default function PresentationRequest() {
       }
 
       const holderDid = didDocument.id;
-      console.log("Holder DID:", holderDid);
+      console.log("APP-EBSI: Holder DID:", holderDid);
 
       // Crea la Verifiable Presentation
       const vp = await createVerifiablePresentation(
@@ -312,7 +315,7 @@ export default function PresentationRequest() {
         verifierInfo.clientId
       );
 
-      console.log("Verifiable Presentation creata:", vp);
+      console.log("APP-EBSI: Verifiable Presentation creata:", vp);
 
       // Crea la presentation_submission
       const presentationSubmission = createPresentationSubmission(
@@ -320,12 +323,12 @@ export default function PresentationRequest() {
         presentationRequest.presentation_definition
       );
 
-      console.log("Presentation Submission:", presentationSubmission);
+      console.log("APP-EBSI: Presentation Submission:", presentationSubmission);
 
       // Invia la risposta al verifier
       await sendPresentationResponse(vp, presentationSubmission);
     } catch (err) {
-      console.error("Errore invio presentation:", err);
+      console.error("APP-EBSI: Errore invio presentation:", err);
       setError(err.message || "Errore durante l'invio della presentation");
       setLoading(false);
     }
@@ -351,10 +354,10 @@ export default function PresentationRequest() {
       // Crea VP Token JWT firmato usando l'utility
       const vpJwt = await createVPToken(verifiableCredentials, holderDid, nonce, audience);
 
-      console.log("VP JWT firmato creato");
+      console.log("APP-EBSI: VP JWT firmato creato");
       return vpJwt;
     } catch (error) {
-      console.error("Errore creazione VP:", error);
+      console.error("APP-EBSI: Errore creazione VP:", error);
       throw new Error(`Errore nella creazione della VP: ${error.message}`);
     }
   };
@@ -402,8 +405,11 @@ export default function PresentationRequest() {
         responseData.state = state;
       }
 
-      console.log("Invio risposta a:", responseUri);
-      console.log("Response data (senza token completo):", { ...responseData, vp_token: "[JWT]" });
+      console.log("APP-EBSI: Invio risposta a:", responseUri);
+      console.log("APP-EBSI: Response data (senza token completo):", {
+        ...responseData,
+        vp_token: "[JWT]",
+      });
 
       // Invia in base al response_mode
       if (responseMode === "direct_post" || responseMode === "post") {
@@ -424,7 +430,7 @@ export default function PresentationRequest() {
         }
 
         const result = await response.json().catch(() => ({}));
-        console.log("Risposta dal verifier:", result);
+        console.log("APP-EBSI: Risposta dal verifier:", result);
 
         // Successo
         setLoading(false);

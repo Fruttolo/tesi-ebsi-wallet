@@ -27,7 +27,7 @@ export default function SeedPhraseDisplay({ mnemonic, onNext }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
-      console.error("Failed to copy:", err);
+      console.error("APP-EBSI: Failed to copy:", err);
     }
   };
 

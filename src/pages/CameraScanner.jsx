@@ -58,7 +58,7 @@ export default function CameraScanner() {
         handleScanResult(result.content);
       }
     } catch (err) {
-      console.error("Errore scansione:", err);
+      console.error("APP-EBSI: Errore scansione:", err);
       setError(err.message || "Errore durante la scansione");
       setPreparing(false);
       stopScanning();
@@ -76,13 +76,13 @@ export default function CameraScanner() {
       setScanning(false);
       setTorchOn(false);
     } catch (err) {
-      console.error("Errore stop scansione:", err);
+      console.error("APP-EBSI: Errore stop scansione:", err);
     }
   };
 
   const handleScanResult = async (content) => {
     await stopScanning();
-    console.log("Contenuto scansionato:", content);
+    console.log("APP-EBSI: Contenuto scansionato:", content);
 
     try {
       // 1. Gestisci OpenID4VCI Credential Offering
@@ -106,7 +106,7 @@ export default function CameraScanner() {
         processScannedData({ raw: content, type: "text" });
       }
     } catch (error) {
-      console.error("Errore processamento QR:", error);
+      console.error("APP-EBSI: Errore processamento QR:", error);
       setError(error.message || "Errore nel processamento del QR code");
       // Torna alla pagina scan con errore
       navigate("/scan-qr", {
@@ -122,7 +122,7 @@ export default function CameraScanner() {
    * Riferimento: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
    */
   const handleCredentialOffer = async (uri) => {
-    console.log("Credential Offer URI:", uri);
+    console.log("APP-EBSI: Credential Offer URI:", uri);
 
     try {
       // Estrai i parametri dall'URI
@@ -134,7 +134,7 @@ export default function CameraScanner() {
 
       // Caso 1: credential_offer_uri - scarica l'offer da un endpoint
       if (credentialOfferUri) {
-        console.log("Scaricamento Credential Offer da:", credentialOfferUri);
+        console.log("APP-EBSI: Scaricamento Credential Offer da:", credentialOfferUri);
         const response = await fetch(credentialOfferUri);
         if (!response.ok) {
           throw new Error(`Errore nel download del credential offer: ${response.statusText}`);
@@ -148,7 +148,7 @@ export default function CameraScanner() {
         throw new Error("Credential offer non trovato nell'URI");
       }
 
-      console.log("Credential Offer ricevuto:", credentialOffer);
+      console.log("APP-EBSI: Credential Offer ricevuto:", credentialOffer);
 
       // Naviga alla pagina di gestione credential offer con i dati
       navigate("/credential-offer", {
@@ -158,7 +158,7 @@ export default function CameraScanner() {
         },
       });
     } catch (error) {
-      console.error("Errore gestione Credential Offer:", error);
+      console.error("APP-EBSI: Errore gestione Credential Offer:", error);
       throw new Error(`Errore nel processamento del credential offer: ${error.message}`);
     }
   };
@@ -167,7 +167,7 @@ export default function CameraScanner() {
    * Gestisce una Presentation Request secondo OpenID4VP
    */
   const handlePresentationRequest = async (uri) => {
-    console.log("Presentation Request URI:", uri);
+    console.log("APP-EBSI: Presentation Request URI:", uri);
 
     // Naviga alla pagina di gestione presentation request
     navigate("/presentation-request", {
@@ -179,7 +179,7 @@ export default function CameraScanner() {
   };
 
   const processScannedData = (data) => {
-    console.log("QR Code scansionato:", data);
+    console.log("APP-EBSI: QR Code scansionato:", data);
 
     // Determina il tipo di QR code e naviga di conseguenza
     if (data.type === "verification-request") {
@@ -204,7 +204,7 @@ export default function CameraScanner() {
       await BarcodeScanner.toggleTorch();
       setTorchOn(!torchOn);
     } catch (err) {
-      console.error("Errore toggle torcia:", err);
+      console.error("APP-EBSI: Errore toggle torcia:", err);
     }
   };
 

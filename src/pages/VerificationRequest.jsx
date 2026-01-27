@@ -63,7 +63,7 @@ export default function VerificationRequest() {
 
       setSuitableCredentials(suitable);
     } catch (err) {
-      console.error("Errore ricerca credenziali:", err);
+      console.error("APP-EBSI: Errore ricerca credenziali:", err);
       setError("Errore nella ricerca delle credenziali");
     }
   };
@@ -123,7 +123,7 @@ export default function VerificationRequest() {
         navigate("/home", { state: { message: "Verifica completata con successo!" } });
       }, 2000);
     } catch (err) {
-      console.error("Errore creazione risposta:", err);
+      console.error("APP-EBSI: Errore creazione risposta:", err);
       setError("Errore nella creazione della risposta di verifica");
     } finally {
       setProcessing(false);
@@ -322,7 +322,7 @@ async function sendResponse(url, response) {
 
     return await res.json();
   } catch (err) {
-    console.error("Errore invio risposta:", err);
+    console.error("APP-EBSI: Errore invio risposta:", err);
     throw err;
   }
 }

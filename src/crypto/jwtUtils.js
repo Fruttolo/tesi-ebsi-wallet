@@ -53,7 +53,7 @@ export async function signJWT(header, payload) {
 
     return jwt;
   } catch (error) {
-    console.error("Error signing JWT:", error);
+    console.error("APP-EBSI: Error signing JWT:", error);
     throw new Error(`Failed to sign JWT: ${error.message}`);
   }
 }
@@ -97,7 +97,7 @@ export async function verifyJWT(jwt, publicKeyJwk) {
 
     return { header, payload };
   } catch (error) {
-    console.error("Error verifying JWT:", error);
+    console.error("APP-EBSI: Error verifying JWT:", error);
     throw new Error(`Failed to verify JWT: ${error.message}`);
   }
 }
@@ -121,7 +121,7 @@ export function decodeJWT(jwt) {
 
     return { header, payload };
   } catch (error) {
-    console.error("Error decoding JWT:", error);
+    console.error("APP-EBSI: Error decoding JWT:", error);
     throw new Error(`Failed to decode JWT: ${error.message}`);
   }
 }
