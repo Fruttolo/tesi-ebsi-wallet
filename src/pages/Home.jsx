@@ -220,30 +220,6 @@ export default function Home() {
             Il tuo wallet EBSI è pronto per gestire credenziali verificabili con privacy by design.
             Usa il menu in basso per navigare.
           </Typography>
-
-          {/* Development Mode - Link al generatore QR */}
-          {process.env.NODE_ENV === "development" && (
-            <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid rgba(96, 165, 250, 0.2)" }}>
-              <Typography
-                variant="caption"
-                color="warning.main"
-                fontWeight={600}
-                display="block"
-                gutterBottom
-              >
-                🛠️ MODALITÀ SVILUPPO
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                color="warning"
-                onClick={() => navigate("/test-qr-generator")}
-                fullWidth
-              >
-                Genera QR Code Test
-              </Button>
-            </Box>
-          )}
         </CardContent>
       </Card>
     </PageBase>

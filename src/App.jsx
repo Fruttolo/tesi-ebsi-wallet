@@ -13,7 +13,6 @@ import CredentialsList from "./pages/CredentialsList";
 import ScanQR from "./pages/ScanQR";
 import AddCredential from "./pages/AddCredential";
 import Settings from "./pages/Settings";
-import TestQRGenerator from "./pages/TestQRGenerator";
 
 /**
  * Componente principale dell'app con routing e tema mobile-optimized
@@ -74,7 +73,6 @@ export default function App() {
           <Route path="/scan-qr" element={<ScanQR />} />
           <Route path="/add-credential" element={<AddCredential />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/test-qr-generator" element={<TestQRGenerator />} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
