@@ -10,8 +10,8 @@
   "scripts": {
     "start": "vite",
     "dev": "vite",
-    "android": "pnpm build && npx cap copy android && npx cap run android",
-    "android:init": "npx cap add android",
+    "android": "pnpm build && npx cap sync android && npx cap run android",
+    "android:init": "npx cap add android && npx cap sync androidcopy android",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
@@ -41,6 +41,7 @@
     "@capacitor/preferences": "^8.0.0",
     "@capacitor/splash-screen": "latest",
     "@capacitor/status-bar": "^8.0.0",
+    "@capacitor/toast": "^8.0.0",
     "@cef-ebsi/key-did-resolver": "^2.1.1",
     "@cef-ebsi/verifiable-credential": "^7.2.0",
     "@digitalbazaar/vc": "^7.2.0",

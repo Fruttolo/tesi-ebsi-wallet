@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Grid, Card, CardContent, Typography, Box, Chip, Avatar } from "@mui/material";
+import { Grid, Card, CardContent, Typography, Box, Chip, Avatar, Button } from "@mui/material";
 import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AddIcon from "@mui/icons-material/Add";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { Toast } from "@capacitor/toast";
 import PageBase from "../components/PageBase";
 import { getDID } from "../storage/didStorage";
 
@@ -33,6 +35,26 @@ export default function Home() {
   };
 
   const shortDid = did ? `${did.slice(0, 15)}...${did.slice(-8)}` : "Caricamento...";
+
+  const handleCopyDID = async () => {
+    if (!did) return;
+
+    try {
+      await navigator.clipboard.writeText(did);
+      await Toast.show({
+        text: "DID copiato negli appunti",
+        duration: "short",
+        position: "bottom",
+      });
+    } catch (error) {
+      console.error("Errore durante la copia del DID:", error);
+      await Toast.show({
+        text: "Errore durante la copia",
+        duration: "short",
+        position: "bottom",
+      });
+    }
+  };
 
   // Card azioni rapide - ottimizzate per touch
   const QuickActionCard = ({ icon: Icon, title, subtitle, onClick, color = "primary.main" }) => (
@@ -100,11 +122,22 @@ export default function Home() {
           </Typography>
           <Chip
             label={shortDid}
+            icon={<ContentCopyIcon sx={{ fontSize: "1rem" }} />}
             variant="outlined"
+            onClick={handleCopyDID}
             sx={{
               fontFamily: "monospace",
               fontSize: "0.8rem",
               maxWidth: "100%",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                borderColor: "primary.main",
+                bgcolor: "rgba(96, 165, 250, 0.1)",
+              },
+              "&:active": {
+                transform: "scale(0.97)",
+              },
               "& .MuiChip-label": {
                 display: "block",
                 overflow: "hidden",
@@ -183,10 +216,34 @@ export default function Home() {
           <Typography variant="h6" gutterBottom fontWeight={600}>
             💡 Benvenuto
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" paragraph>
             Il tuo wallet EBSI è pronto per gestire credenziali verificabili con privacy by design.
             Usa il menu in basso per navigare.
           </Typography>
+
+          {/* Development Mode - Link al generatore QR */}
+          {process.env.NODE_ENV === "development" && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid rgba(96, 165, 250, 0.2)" }}>
+              <Typography
+                variant="caption"
+                color="warning.main"
+                fontWeight={600}
+                display="block"
+                gutterBottom
+              >
+                🛠️ MODALITÀ SVILUPPO
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                color="warning"
+                onClick={() => navigate("/test-qr-generator")}
+                fullWidth
+              >
+                Genera QR Code Test
+              </Button>
+            </Box>
+          )}
         </CardContent>
       </Card>
     </PageBase>
