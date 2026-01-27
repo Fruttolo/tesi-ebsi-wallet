@@ -12,6 +12,8 @@ import ImportWallet from "./pages/ImportWallet";
 import CredentialsList from "./pages/CredentialsList";
 import ScanQR from "./pages/ScanQR";
 import CameraScanner from "./pages/CameraScanner";
+import CredentialOffer from "./pages/CredentialOffer";
+import PresentationRequest from "./pages/PresentationRequest";
 import AddCredential from "./pages/AddCredential";
 import Settings from "./pages/Settings";
 
@@ -73,6 +75,8 @@ export default function App() {
           <Route path="/credentials" element={<CredentialsList />} />
           <Route path="/scan-qr" element={<ScanQR />} />
           <Route path="/camera-scanner" element={<CameraScanner />} />
+          <Route path="/credential-offer" element={<CredentialOffer />} />
+          <Route path="/presentation-request" element={<PresentationRequest />} />
           <Route path="/add-credential" element={<AddCredential />} />
           <Route path="/settings" element={<Settings />} />
 

@@ -2,6 +2,9 @@ import { util } from "@cef-ebsi/key-did-resolver";
 import bs58 from "bs58";
 import { sha256 } from "@noble/hashes/sha2.js";
 
+// Re-export funzioni di storage per convenienza
+export { getDIDDocument, saveDIDDocument, getDID, saveDID } from "../storage/didStorage.js";
+
 /**
  * Genera DID did:key dal publicKeyJwk usando libreria EBSI
  * @param {Object} publicKeyJwk - Chiave pubblica in formato JWK
@@ -52,19 +55,23 @@ export function createDIDDocument(did, publicKeyJwk) {
     throw new Error("DID and public key are required");
   }
 
+  // Usa il formato standard per key ID
+  const keyId = getKeyIdFromDID(did);
+
   return {
     "@context": ["https://www.w3.org/ns/did/v1", "https://w3id.org/security/suites/jws-2020/v1"],
     id: did,
     verificationMethod: [
       {
-        id: `${did}#key-1`,
+        id: keyId,
         type: "JsonWebKey2020",
         controller: did,
         publicKeyJwk: publicKeyJwk,
       },
     ],
-    authentication: [`${did}#key-1`],
-    assertionMethod: [`${did}#key-1`],
+    authentication: [keyId],
+    assertionMethod: [keyId],
+    keyAgreement: [keyId],
   };
 }
 
@@ -78,7 +85,19 @@ export function getKeyIdFromDID(did) {
     throw new Error("DID is required");
   }
 
-  // Per did:key, il fragment è tipicamente il fingerprint senza il prefisso
-  const fragment = did.startsWith("did:key:") ? did.replace("did:key:", "") : "key-1";
-  return `${did}#${fragment}`;
+  // Per did:key, il fragment deve essere il fingerprint (parte dopo did:key:)
+  // perché la libreria @cef-ebsi/key-did-resolver genera DID documents con questo formato
+  // Il kid nel JWT deve corrispondere esattamente al verification method ID nel DID document
+
+  if (did.startsWith("did:key:")) {
+    // Estrai il fingerprint (tutto dopo "did:key:")
+    const fingerprint = did.replace("did:key:", "");
+    return `${did}#${fingerprint}`;
+  } else if (did.startsWith("did:ebsi:")) {
+    // Per did:ebsi, usa il formato standard keys-1
+    return `${did}#keys-1`;
+  } else {
+    // Fallback generico
+    return `${did}#key-1`;
+  }
 }

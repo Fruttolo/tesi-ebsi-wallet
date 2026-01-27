@@ -80,17 +80,102 @@ export default function CameraScanner() {
     }
   };
 
-  const handleScanResult = (content) => {
-    stopScanning();
+  const handleScanResult = async (content) => {
+    await stopScanning();
+    console.log("Contenuto scansionato:", content);
 
     try {
-      // Prova a parsare come JSON
-      const data = JSON.parse(content);
-      processScannedData(data);
-    } catch (e) {
-      // Se non è JSON, tratta come testo
-      processScannedData({ raw: content, type: "text" });
+      // 1. Gestisci OpenID4VCI Credential Offering
+      if (content.startsWith("openid-credential-offer://")) {
+        await handleCredentialOffer(content);
+        return;
+      }
+
+      // 2. Gestisci OpenID4VP Presentation Request
+      if (content.startsWith("openid4vp://") || content.startsWith("openid://")) {
+        await handlePresentationRequest(content);
+        return;
+      }
+
+      // 3. Prova a parsare come JSON
+      try {
+        const data = JSON.parse(content);
+        processScannedData(data);
+      } catch (e) {
+        // 4. Se non è JSON, tratta come testo o URL generico
+        processScannedData({ raw: content, type: "text" });
+      }
+    } catch (error) {
+      console.error("Errore processamento QR:", error);
+      setError(error.message || "Errore nel processamento del QR code");
+      // Torna alla pagina scan con errore
+      navigate("/scan-qr", {
+        state: {
+          error: error.message || "Errore nel processamento del QR code",
+        },
+      });
     }
+  };
+
+  /**
+   * Gestisce un Credential Offering secondo OpenID4VCI
+   * Riferimento: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
+   */
+  const handleCredentialOffer = async (uri) => {
+    console.log("Credential Offer URI:", uri);
+
+    try {
+      // Estrai i parametri dall'URI
+      const url = new URL(uri);
+      const credentialOfferUri = url.searchParams.get("credential_offer_uri");
+      const credentialOfferParam = url.searchParams.get("credential_offer");
+
+      let credentialOffer;
+
+      // Caso 1: credential_offer_uri - scarica l'offer da un endpoint
+      if (credentialOfferUri) {
+        console.log("Scaricamento Credential Offer da:", credentialOfferUri);
+        const response = await fetch(credentialOfferUri);
+        if (!response.ok) {
+          throw new Error(`Errore nel download del credential offer: ${response.statusText}`);
+        }
+        credentialOffer = await response.json();
+      }
+      // Caso 2: credential_offer inline - già nell'URI (decodificato)
+      else if (credentialOfferParam) {
+        credentialOffer = JSON.parse(decodeURIComponent(credentialOfferParam));
+      } else {
+        throw new Error("Credential offer non trovato nell'URI");
+      }
+
+      console.log("Credential Offer ricevuto:", credentialOffer);
+
+      // Naviga alla pagina di gestione credential offer con i dati
+      navigate("/credential-offer", {
+        state: {
+          credentialOffer,
+          sourceUri: uri,
+        },
+      });
+    } catch (error) {
+      console.error("Errore gestione Credential Offer:", error);
+      throw new Error(`Errore nel processamento del credential offer: ${error.message}`);
+    }
+  };
+
+  /**
+   * Gestisce una Presentation Request secondo OpenID4VP
+   */
+  const handlePresentationRequest = async (uri) => {
+    console.log("Presentation Request URI:", uri);
+
+    // Naviga alla pagina di gestione presentation request
+    navigate("/presentation-request", {
+      state: {
+        uri,
+        type: "openid4vp",
+      },
+    });
   };
 
   const processScannedData = (data) => {

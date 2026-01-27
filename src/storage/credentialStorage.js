@@ -96,3 +96,8 @@ export async function deleteCredential(id) {
 export async function clearAllCredentials() {
   await Preferences.remove({ key: CREDENTIALS_KEY });
 }
+
+/**
+ * Alias per getAllCredentials - compatibilità con naming diverso
+ */
+export const getStoredCredentials = getAllCredentials;

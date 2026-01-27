@@ -73,7 +73,6 @@ src/
 | `ErrorState.jsx`        | Visualizzazione errori user-friendly |
 | `SuccessSnackbar.jsx`   | Notifiche di successo                |
 | `AttributeSelector.jsx` | Selector attributi credenziali       |
-| `QRScanner.jsx`         | Scanner QR code                      |
 
 ## 📄 pages/
 

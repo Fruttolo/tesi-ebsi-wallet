@@ -1,4 +1,4 @@
-const EBSI_BASE_URL = "https://api-pilot.ebsi.eu";
+const EBSI_BASE_URL = `https://${import.meta.env.VITE_HOST || "api-pilot.ebsi.eu"}`;
 
 export class EBSIClient {
   constructor(bearerToken = null) {

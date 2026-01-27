@@ -20,7 +20,7 @@ export async function authenticateEBSI(did, privateKey) {
   const signedToken = await signJWT(
     {
       iss: did,
-      aud: "https://api-pilot.ebsi.eu",
+      aud: `https://${import.meta.env.VITE_HOST || "api-pilot.ebsi.eu"}`,
       nonce: challenge.nonce,
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor(Date.now() / 1000) + 300, // 5 min
