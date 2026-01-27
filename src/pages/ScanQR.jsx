@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container, Typography, Box, Button, Paper, Alert, Chip } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import PageBase from "../components/PageBase";
-import QRScanner from "../components/QRScanner";
 
 /**
  * Pagina per la scansione di QR code
@@ -13,40 +12,22 @@ import QRScanner from "../components/QRScanner";
  */
 export default function ScanQR() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [scannedData, setScannedData] = useState(null);
   const [error, setError] = useState("");
   const [scanSuccess, setScanSuccess] = useState(false);
 
-  const handleScan = (data) => {
-    console.log("QR Code scansionato:", data);
-    setScannedData(data);
-    setScanSuccess(true);
-    setError("");
-
-    // Determina il tipo di QR code e naviga di conseguenza
-    if (data.type === "verification-request") {
-      // Richiesta di verifica - naviga a pagina di approvazione
-      navigate("/verification-request", { state: { request: data } });
-    } else if (data.type === "credential-offer") {
-      // Offerta di credenziale - naviga a pagina di ricezione
-      navigate("/add-credential", { state: { offer: data } });
-    } else if (data.type === "selective-disclosure") {
-      // Richiesta di selective disclosure
-      navigate("/selective-presentation", { state: { request: data } });
-    } else if (data.raw) {
-      // QR code generico - mostra il contenuto
-      setScannedData({ type: "generic", content: data.raw });
-    } else {
-      // Formato sconosciuto
-      setError("Formato QR code non riconosciuto");
-      setScanSuccess(false);
+  // Gestisci dati ricevuti dalla pagina di scansione
+  useEffect(() => {
+    if (location.state?.scannedData) {
+      setScannedData(location.state.scannedData);
+      setScanSuccess(location.state.success || false);
     }
-  };
+  }, [location.state]);
 
-  const handleError = (err) => {
-    console.error("Errore scansione:", err);
-    setError(err.message || "Errore durante la scansione");
-    setScanSuccess(false);
+  const handleStartScan = () => {
+    // Naviga alla pagina dedicata per la scansione
+    navigate("/camera-scanner");
   };
 
   const resetScan = () => {
@@ -76,18 +57,36 @@ export default function ScanQR() {
           </Typography>
         </Box>
 
-        {/* QR Scanner Component */}
+        {/* Pulsante per avviare la scansione */}
         <Box sx={{ mb: 3 }}>
-          <QRScanner onScan={handleScan} onError={handleError} />
+          <Button
+            variant="contained"
+            size="large"
+            fullWidth
+            startIcon={<QrCodeScannerIcon />}
+            onClick={handleStartScan}
+            sx={{
+              py: 1.5,
+              fontSize: "1.1rem",
+              fontWeight: 600,
+            }}
+          >
+            Avvia Scansione
+          </Button>
         </Box>
 
         {/* Success Message */}
-        {scanSuccess && !error && (
+        {scanSuccess && scannedData && (
           <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }} onClose={resetScan}>
             <Typography variant="body2" fontWeight={600}>
               QR Code scansionato con successo!
             </Typography>
-            <Typography variant="caption">Reindirizzamento in corso...</Typography>
+            {scannedData.raw && (
+              <Typography variant="caption" sx={{ display: "block", mt: 1 }}>
+                Contenuto: {scannedData.raw.substring(0, 100)}
+                {scannedData.raw.length > 100 ? "..." : ""}
+              </Typography>
+            )}
           </Alert>
         )}
 
@@ -158,13 +157,6 @@ export default function ScanQR() {
             • Le tue credenziali rimangono sul dispositivo
           </Typography>
         </Paper>
-
-        {/* Pulsante torna alla home */}
-        <Box sx={{ mt: 4, textAlign: "center" }}>
-          <Button variant="outlined" onClick={() => navigate("/home")} fullWidth>
-            Torna alla Home
-          </Button>
-        </Box>
       </Container>
     </PageBase>
   );
