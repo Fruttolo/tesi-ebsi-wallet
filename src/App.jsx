@@ -37,39 +37,97 @@ export default function App() {
 
   useEffect(() => {
     // Listener per deep linking - gestisce apertura app da URI scheme
-    const handleAppUrlOpen = CapacitorApp.addListener("appUrlOpen", (event) => {
-      console.log("APP-EBSI: App opened with URL:", event.url);
+    let handleAppUrlOpen;
 
-      try {
-        const url = event.url;
+    const setupListener = async () => {
+      handleAppUrlOpen = await CapacitorApp.addListener("appUrlOpen", (event) => {
+        console.log("APP-EBSI: 🔗 App opened with URL:", event.url);
+        console.log("APP-EBSI: 🔍 Full event details:", JSON.stringify(event, null, 2));
 
-        // Gestisci Credential Offering (OpenID4VCI)
-        if (url.startsWith("openid-credential-offer://")) {
-          handleCredentialOffer(url);
-          return;
+        try {
+          const url = event.url;
+
+          // Log dettagliato dell'URL ricevuto
+          console.log("APP-EBSI: 📊 URL Analysis:");
+          console.log("  - Full URL:", url);
+          console.log("  - Length:", url.length);
+          console.log("  - First 100 chars:", url.substring(0, 100));
+
+          // Gestisci Authorization callback (OAuth redirect)
+          if (url.startsWith("openid://")) {
+            console.log("APP-EBSI: ✅ Riconosciuto come Authorization callback");
+            handleAuthorizationCallback(url);
+            return;
+          }
+
+          // Gestisci Credential Offering (OpenID4VCI)
+          if (url.startsWith("openid-credential-offer://")) {
+            console.log("APP-EBSI: ✅ Riconosciuto come Credential Offer");
+            handleCredentialOffer(url);
+            return;
+          }
+
+          // Gestisci Presentation Request (OpenID4VP)
+          if (url.startsWith("openid4vp://")) {
+            console.log("APP-EBSI: ✅ Riconosciuto come Presentation Request");
+            handlePresentationRequest(url);
+            return;
+          }
+
+          // Fallback: controlla se è un URL HTTP/HTTPS con parametri credential offer
+          if (url.startsWith("http://") || url.startsWith("https://")) {
+            console.log("APP-EBSI: 🔍 Controllando URL HTTP per parametri credential offer...");
+            try {
+              const urlObj = new URL(url);
+              const credentialOfferUri = urlObj.searchParams.get("credential_offer_uri");
+              const credentialOfferParam = urlObj.searchParams.get("credential_offer");
+
+              if (credentialOfferUri || credentialOfferParam) {
+                console.log("APP-EBSI: ✅ Trovati parametri credential offer in URL HTTP");
+                // Converti in formato openid-credential-offer://
+                const customSchemeUrl = url.replace(
+                  /^https?:\/\/[^?]*\?/,
+                  "openid-credential-offer://?"
+                );
+                handleCredentialOffer(customSchemeUrl);
+                return;
+              }
+            } catch (e) {
+              console.log("APP-EBSI: ⚠️ URL HTTP non contiene credential offer:", e.message);
+            }
+          }
+
+          console.warn("APP-EBSI: ⚠️ Schema URI non riconosciuto:", url);
+          console.warn(
+            "APP-EBSI: 💡 Schemi attesi: openid://, openid-credential-offer://, openid4vp://"
+          );
+
+          // Naviga a home con messaggio di errore più descrittivo
+          navigate("/home", {
+            state: {
+              error: `Schema URI non riconosciuto. Ricevuto: ${url.substring(0, 50)}...`,
+            },
+          });
+        } catch (error) {
+          console.error("APP-EBSI: ❌ Errore gestione deep link:", error);
+          console.error("APP-EBSI: Stack trace:", error.stack);
+          // In caso di errore, mostra un alert o naviga a home con messaggio
+          navigate("/home", {
+            state: {
+              error: `Errore nell'apertura del link: ${error.message}`,
+            },
+          });
         }
+      });
+    };
 
-        // Gestisci Presentation Request (OpenID4VP)
-        if (url.startsWith("openid4vp://") || url.startsWith("openid://")) {
-          handlePresentationRequest(url);
-          return;
-        }
-
-        console.warn("Schema URI non riconosciuto:", url);
-      } catch (error) {
-        console.error("APP-EBSI: Errore gestione deep link:", error);
-        // In caso di errore, mostra un alert o naviga a home con messaggio
-        navigate("/home", {
-          state: {
-            error: `Errore nell'apertura del link: ${error.message}`,
-          },
-        });
-      }
-    });
+    setupListener();
 
     // Cleanup listener
     return () => {
-      handleAppUrlOpen.remove();
+      if (handleAppUrlOpen) {
+        handleAppUrlOpen.remove();
+      }
     };
   }, [navigate]);
 
@@ -80,13 +138,38 @@ export default function App() {
     console.log("APP-EBSI: 🔗 Deep Link - Credential Offer URI ricevuto:", uri);
 
     try {
-      const url = new URL(uri);
+      // Rimuovi eventuali spazi o caratteri strani
+      const cleanUri = uri.trim();
+      console.log("APP-EBSI: 🧹 URI pulito:", cleanUri);
+
+      let url;
+      try {
+        url = new URL(cleanUri);
+      } catch (urlError) {
+        console.error("APP-EBSI: ❌ Errore parsing URL:", urlError);
+        console.log("APP-EBSI: 🔍 Tentativo parsing manuale...");
+
+        // Prova a fare parsing manuale per URI non standard
+        const match = cleanUri.match(/^([^:]+):\/\/\?(.+)$/);
+        if (!match) {
+          throw new Error(`URI format non valido: ${cleanUri}`);
+        }
+
+        const [, scheme, queryString] = match;
+        console.log("APP-EBSI: 📝 Schema:", scheme);
+        console.log("APP-EBSI: 📝 Query string:", queryString);
+
+        // Crea un URL valido per fare parsing dei parametri
+        url = new URL(`http://dummy?${queryString}`);
+      }
+
       const credentialOfferUri = url.searchParams.get("credential_offer_uri");
       const credentialOfferParam = url.searchParams.get("credential_offer");
 
       console.log("APP-EBSI: 📋 Parametri URI:", {
         credential_offer_uri: credentialOfferUri,
         credential_offer: credentialOfferParam ? "presente (inline)" : "assente",
+        all_params: Array.from(url.searchParams.entries()),
       });
 
       let credentialOffer;
@@ -105,7 +188,13 @@ export default function App() {
         console.log("APP-EBSI: 📝 Parsing Credential Offer inline");
         credentialOffer = JSON.parse(decodeURIComponent(credentialOfferParam));
       } else {
-        throw new Error("Credential offer non trovato nell'URI");
+        // Nessun parametro trovato - mostra tutti i parametri disponibili
+        const allParams = Array.from(url.searchParams.entries());
+        console.error("APP-EBSI: ❌ Parametri credential_offer non trovati");
+        console.error("APP-EBSI: 📋 Parametri disponibili:", allParams);
+        throw new Error(
+          `Credential offer non trovato nell'URI. Parametri ricevuti: ${allParams.map(([k, v]) => `${k}=${v.substring(0, 50)}`).join(", ")}`
+        );
       }
 
       console.log("APP-EBSI: ✅ Credential Offer ricevuto:");
@@ -145,6 +234,16 @@ export default function App() {
         },
       });
     }
+  };
+
+  /**
+   * Gestisce il callback dall'authorization server (OAuth redirect)
+   * Può essere:
+   * 1. ID Token Request (response_type=id_token) - richiesta di autenticazione DID
+   * 2. Authorization Response (code=...) - risposta finale con authorization code
+   */
+  const handleAuthorizationCallback = async (uri) => {
+    console.log("APP-EBSI: 🔗 Deep Link - Authorization callback ricevuto:", uri);
   };
 
   /**

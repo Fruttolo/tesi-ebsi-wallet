@@ -15,11 +15,13 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
+import { Browser } from "@capacitor/browser";
 import PageBase from "../components/PageBase";
 import { getDIDDocument } from "../identity/didManager";
 import { createIDToken, createProofJWT } from "../crypto/jwtUtils";
 import { saveCredential } from "../storage/credentialStorage";
 import { generateCodeVerifier, generateCodeChallenge, generateRandomString } from "../utils/pkce";
+import { CapacitorHttp } from "@capacitor/core";
 
 /**
  * Pagina per gestire Credential Offering secondo OpenID4VCI
@@ -30,7 +32,14 @@ export default function CredentialOffer() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { credentialOffer, sourceUri } = location.state || {};
+  const {
+    credentialOffer,
+    sourceUri,
+    authCode,
+    authState: incomingState,
+    authError,
+    idTokenRequest, // Nuovo: richiesta ID Token dall'authorization server
+  } = location.state || {};
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -41,30 +50,62 @@ export default function CredentialOffer() {
   const [authState, setAuthState] = useState(null); // Per Authorization Code Flow
 
   useEffect(() => {
+    console.log("APP-EBSI: CredentialOffer mounted");
+    console.log("APP-EBSI: location.state:", JSON.stringify(location.state, null, 2));
+
+    if (authError) {
+      console.log("APP-EBSI: ❌ Auth error presente:", authError);
+      setError(`Errore di autorizzazione: ${authError}`);
+      return;
+    }
+
     if (!credentialOffer) {
+      console.error("APP-EBSI: ❌ Credential offer mancante");
+      console.error("APP-EBSI: 📊 State ricevuto:", location.state);
+      console.error(
+        "APP-EBSI: 📋 Chiavi disponibili:",
+        location.state ? Object.keys(location.state) : "nessuna"
+      );
       setError("Nessun credential offer fornito");
       return;
     }
 
+    console.log("APP-EBSI: ✅ Credential offer presente, avvio discovery");
     // Avvia il discovery
     discoverMetadata();
-  }, [credentialOffer]);
+  }, [credentialOffer, authError]);
 
   // Gestisci il ritorno dall'authorization flow
   useEffect(() => {
     const handleAuthCallback = async () => {
-      // Verifica se stiamo ritornando da un authorization flow
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get("code");
-      const state = urlParams.get("state");
-
-      if (code && state) {
+      // Caso 1: ID Token Request dall'authorization server
+      if (idTokenRequest) {
+        console.log("APP-EBSI: 🆔 Processing ID Token Request");
         const savedState = sessionStorage.getItem("authState");
         if (savedState) {
           try {
             const authStateData = JSON.parse(savedState);
-            if (authStateData.state === state) {
-              await exchangeCodeForToken(code, authStateData);
+            await handleIDTokenRequest(idTokenRequest, authStateData);
+          } catch (err) {
+            console.error("APP-EBSI: Errore nel processing dell'ID Token Request:", err);
+            setError(err.message);
+          }
+        } else {
+          setError("Auth state non trovato - riprova il flusso");
+        }
+        return;
+      }
+
+      // Caso 2: Authorization Response con code
+      if (authCode && incomingState) {
+        console.log("APP-EBSI: 🔄 Processing authorization callback from deep link");
+
+        const savedState = sessionStorage.getItem("authState");
+        if (savedState) {
+          try {
+            const authStateData = JSON.parse(savedState);
+            if (authStateData.state === incomingState) {
+              await exchangeCodeForToken(authCode, authStateData);
             } else {
               setError("State mismatch - possibile attacco CSRF");
             }
@@ -77,7 +118,7 @@ export default function CredentialOffer() {
     };
 
     handleAuthCallback();
-  }, []);
+  }, [authCode, incomingState, idTokenRequest]);
 
   /**
    * Step 1: Discovery delle configurazioni Issuer e Authorization Server
@@ -131,23 +172,60 @@ export default function CredentialOffer() {
       // VALIDAZIONE: Verifica che i credential types nell'offer siano supportati dall'issuer
       if (issuerMeta.credentials_supported) {
         console.log("APP-EBSI: 🔎 Validazione credential types...");
-        const offeredIds =
+        const offeredItems =
           credentialOffer.credential_configuration_ids || credentialOffer.credentials;
-        console.log("APP-EBSI:   Offerti nell'offer:", offeredIds);
+        console.log("APP-EBSI:   Offerti nell'offer:", offeredItems);
 
-        const supportedIds = issuerMeta.credentials_supported.map((c) => {
-          // Può essere un ID diretto o un oggetto con id
-          return c.id || c;
+        // Estrai i types dagli item offerti
+        // Possono essere: string IDs, oggetti con types, o array di types
+        const offeredTypes = offeredItems.flatMap((item) => {
+          if (typeof item === "string") {
+            return [item]; // ID semplice
+          } else if (item?.types && Array.isArray(item.types)) {
+            return item.types; // Oggetto con array types
+          } else if (Array.isArray(item)) {
+            return item; // È già un array
+          }
+          return [];
         });
-        console.log("APP-EBSI:   Supportati dall'issuer:", supportedIds);
+        console.log("APP-EBSI:   Types estratti dall'offer:", offeredTypes);
 
-        // Verifica che almeno uno sia supportato
-        const hasMatch =
-          offeredIds && offeredIds.some((offeredId) => supportedIds.includes(offeredId));
+        // Estrai i types supportati dall'issuer
+        // credentials_supported contiene oggetti con types array o id
+        const supportedTypesList = issuerMeta.credentials_supported.map((c) => {
+          if (c.types && Array.isArray(c.types)) {
+            return c.types; // Array di types
+          } else if (c.id) {
+            return [c.id]; // ID come array singolo
+          }
+          return [];
+        });
 
-        if (!hasMatch) {
+        // Flatten per avere una lista piatta di tutti i types supportati
+        const allSupportedTypes = supportedTypesList.flat();
+        console.log("APP-EBSI:   Types supportati dall'issuer (flattened):", allSupportedTypes);
+
+        // Verifica che almeno uno dei credential types nell'offer sia supportato
+        const hasMatch = offeredTypes.some((offeredType) =>
+          allSupportedTypes.includes(offeredType)
+        );
+
+        // Oppure verifica se esiste una configurazione che matcha tutti i types offerti
+        const hasExactMatch = supportedTypesList.some((supportedTypes) =>
+          offeredTypes.every((offeredType) => supportedTypes.includes(offeredType))
+        );
+
+        console.log("APP-EBSI:   Ha match parziale:", hasMatch);
+        console.log("APP-EBSI:   Ha match esatto:", hasExactMatch);
+
+        console.log("APP-EBSI:   Ha match parziale:", hasMatch);
+        console.log("APP-EBSI:   Ha match esatto:", hasExactMatch);
+
+        if (!hasMatch && !hasExactMatch) {
           console.warn("⚠️ ATTENZIONE: Nessun credential type corrispondente trovato!");
           console.warn("   Questo potrebbe causare errori durante l'authorization.");
+          console.warn("   Offerti:", offeredTypes);
+          console.warn("   Supportati:", allSupportedTypes);
         } else {
           console.log("APP-EBSI: ✅ Credential types validati correttamente");
         }
@@ -290,6 +368,27 @@ export default function CredentialOffer() {
       const authEndpoint = authServerMetadata.authorization_endpoint;
       const redirectUri = "openid://";
 
+      // Prepara authorization_details per specificare le credenziali richieste
+      const authorizationDetails = credentialOffer.credentials.map((cred) => {
+        const detail = {
+          type: "openid_credential",
+          format: cred.format || "jwt_vc",
+          types: cred.types,
+        };
+
+        // Aggiungi location se specificato (credential_issuer)
+        if (credentialOffer.credential_issuer) {
+          detail.locations = [credentialOffer.credential_issuer];
+        }
+
+        return detail;
+      });
+
+      console.log(
+        "APP-EBSI: 📋 Authorization details:",
+        JSON.stringify(authorizationDetails, null, 2)
+      );
+
       const authParams = new URLSearchParams({
         response_type: "code",
         client_id: holderDid,
@@ -298,6 +397,7 @@ export default function CredentialOffer() {
         state: state,
         code_challenge: codeChallenge,
         code_challenge_method: "S256",
+        authorization_details: JSON.stringify(authorizationDetails),
       });
 
       // Aggiungi issuer_state se presente nel grant (OBBLIGATORIO per EBSI)
@@ -321,21 +421,301 @@ export default function CredentialOffer() {
       console.log("APP-EBSI:   - state:", state);
       console.log("APP-EBSI:   - code_challenge:", codeChallenge.substring(0, 20) + "...");
       console.log("APP-EBSI:   - issuer_state:", authCodeGrant?.issuer_state || "MISSING");
+      console.log("APP-EBSI:   - authorization_details:", JSON.stringify(authorizationDetails));
 
       const authUrl = `${authEndpoint}?${authParams.toString()}`;
       console.log("APP-EBSI: Authorization Request URL:", authUrl);
 
-      // 3. Effettua la richiesta di autorizzazione
-      // In un contesto mobile, questo aprirebbe il browser
-      // Per ora simuliamo il flusso direttamente
-      const authResponse = await fetch(authUrl, {
-        method: "GET",
-        redirect: "manual",
+      // 3. Apri il browser per la richiesta di autorizzazione
+      // Il flusso continuerà quando l'app riceverà il redirect via deep link
+      //console.log("APP-EBSI: 🌐 Apertura browser per authorization...");
+      //await Browser.open({ url: authUrl });
+
+      // 3. Prova a fare il fetch con capacitorHttp diretto in app (senza aprire il browser)
+      console.log("APP-EBSI: 🌐 Apertura authorization URL in app...");
+      const response = await CapacitorHttp.get({ url: authUrl });
+
+      if (response.status != 302 || !response.headers["Location"]) {
+        throw new Error(`Errore nell'apertura dell'authorization URL: ${response.status}`);
+      }
+
+      if (!response.headers["Location"].startsWith("openid://")) {
+        throw new Error("Redirect URI non valido ricevuto dall'authorization server");
+      }
+
+      console.log("APP-EBSI: 📥 Authorization response status:", response);
+
+      // Nota: Il flusso continuerà tramite deep link handler in App.jsx
+      // che chiamerà handleAuthorizationCallback con i parametri del redirect
+      console.log("APP-EBSI: ⏳ In attesa del redirect dall'authorization server...");
+
+      const uri = response.headers["Location"];
+
+      try {
+        const url = new URL(uri);
+        const responseType = url.searchParams.get("response_type");
+        const code = url.searchParams.get("code");
+        const state = url.searchParams.get("state");
+        const error = url.searchParams.get("error");
+        const errorDescription = url.searchParams.get("error_description");
+
+        // Gestisci errori
+        if (error) {
+          console.error("APP-EBSI: ❌ Authorization error:", error, errorDescription);
+          navigate("/credential-offer", {
+            state: {
+              authError: errorDescription || error,
+            },
+          });
+          return;
+        }
+
+        // Caso 1: ID Token Request dall'authorization server
+        if (responseType === "id_token") {
+          console.log("APP-EBSI: 🆔 ID Token Request ricevuto dall'authorization server");
+          const clientId = url.searchParams.get("client_id");
+          const nonce = url.searchParams.get("nonce");
+          const redirectUri = url.searchParams.get("redirect_uri");
+          const requestUri = url.searchParams.get("request_uri");
+
+          console.log("APP-EBSI: 📋 ID Token Request params:");
+          console.log("APP-EBSI:   - client_id:", clientId);
+          console.log("APP-EBSI:   - nonce:", nonce);
+          console.log("APP-EBSI:   - redirect_uri:", redirectUri);
+          console.log("APP-EBSI:   - state:", state);
+          console.log("APP-EBSI:   - request_uri:", requestUri || "N/A");
+
+          // Naviga alla pagina credential offer con i parametri dell'ID Token Request
+          navigate("/credential-offer", {
+            state: {
+              idTokenRequest: {
+                clientId,
+                nonce,
+                redirectUri,
+                state,
+                requestUri,
+              },
+            },
+          });
+          return;
+        }
+
+        // Caso 2: Authorization Response con code
+        if (code && state) {
+          console.log("APP-EBSI: ✅ Authorization code ricevuto");
+          console.log("APP-EBSI:   - code:", code.substring(0, 20) + "...");
+          console.log("APP-EBSI:   - state:", state);
+
+          // Naviga alla pagina credential offer con i parametri del callback
+          navigate("/credential-offer", {
+            state: {
+              authCode: code,
+              authState: state,
+            },
+          });
+          return;
+        }
+
+        // Nessun parametro riconosciuto
+        throw new Error(
+          `Callback non riconosciuto. response_type: ${responseType}, code: ${code ? "presente" : "assente"}`
+        );
+      } catch (error) {
+        console.error("APP-EBSI: ❌ Errore gestione authorization callback:", error);
+        navigate("/home", {
+          state: {
+            error: `Errore nel callback di autorizzazione: ${error.message}`,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("APP-EBSI: ❌ Errore nel Authorization Code Flow:", err);
+      throw err;
+    }
+  };
+
+  /**
+   * Gestisce un ID Token Request dall'Authorization Server
+   * L'auth server richiede un ID Token per autenticare il DID del wallet
+   */
+  const handleIDTokenRequest = async (idTokenRequest, authStateData) => {
+    console.log("APP-EBSI: 🆔 Gestione ID Token Request");
+    console.log("APP-EBSI: ID Token Request params:", idTokenRequest);
+
+    try {
+      setLoading(true);
+      setError("");
+
+      // Recupera il DID del wallet
+      const didDocument = await getDIDDocument();
+      if (!didDocument || !didDocument.id) {
+        throw new Error("DID del wallet non trovato");
+      }
+      const holderDid = didDocument.id;
+
+      const { clientId, nonce, redirectUri, state, requestUri } = idTokenRequest;
+
+      // Se presente request_uri, scarica i parametri della richiesta
+      if (requestUri) {
+        console.log("APP-EBSI: 📥 Scaricamento parametri da request_uri:", requestUri);
+        try {
+          const requestResponse = await fetch(requestUri);
+          if (requestResponse.ok) {
+            const requestParams = await requestResponse.text();
+            console.log("APP-EBSI: 📋 Request params:", requestParams);
+            // I parametri aggiuntivi potrebbero essere in formato JWT o JSON
+            // Per ora logghiamoli per debug
+          }
+        } catch (e) {
+          console.warn("APP-EBSI: ⚠️ Impossibile scaricare request_uri:", e.message);
+        }
+      }
+
+      // Crea ID Token firmato con il DID del wallet
+      console.log("APP-EBSI: 🔐 Creazione ID Token...");
+      console.log("APP-EBSI:   - iss (holder DID):", holderDid);
+      console.log("APP-EBSI:   - aud (client_id):", clientId);
+      console.log("APP-EBSI:   - nonce:", nonce);
+      console.log("APP-EBSI:   - DID document:", didDocument);
+
+      // Chiama createIDToken con i parametri corretti (issuerDid, audience, nonce)
+      const idToken = await createIDToken(holderDid, clientId, nonce);
+
+      console.log("APP-EBSI: ✅ ID Token creato");
+      console.log("APP-EBSI: 🔍 ID Token (full):", idToken);
+
+      // Decodifica per debug
+      try {
+        const parts = idToken.split(".");
+        const header = JSON.parse(atob(parts[0].replace(/-/g, "+").replace(/_/g, "/")));
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        console.log("APP-EBSI: 📋 ID Token Header:", header);
+        console.log("APP-EBSI: 📋 ID Token Payload:", payload);
+        console.log("APP-EBSI: 📋 Signature length (base64url):", parts[2].length);
+      } catch (e) {
+        console.warn("APP-EBSI: ⚠️ Impossibile decodificare ID Token per debug:", e);
+      }
+
+      // Prepara ID Token Response per direct_post
+      const idTokenResponse = new URLSearchParams({
+        id_token: idToken,
       });
 
-      // Gestisci la risposta (redirect verso ID Token Request)
-      await handleAuthorizationResponse(authResponse, authStateData, holderDid, redirectUri);
+      // Aggiungi state se presente nella richiesta
+      if (state) {
+        idTokenResponse.append("state", state);
+        console.log("APP-EBSI: ✅ State aggiunto alla response:", state);
+      }
+
+      console.log("APP-EBSI: 📤 Invio ID Token Response a:", redirectUri);
+      console.log("APP-EBSI: 📋 ID Token Response params:", idTokenResponse.toString());
+
+      // Invia ID Token Response tramite direct_post con capacitorHttp
+      // NOTA: CapacitorHttp potrebbe seguire automaticamente i redirect
+      const response = await CapacitorHttp.post({
+        url: redirectUri,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data: idTokenResponse.toString(),
+      });
+
+      console.log("APP-EBSI: 📥 Direct Post response:", {
+        status: response.status,
+        headers: response.headers,
+        data: typeof response.data === "string" ? response.data.substring(0, 200) : response.data,
+      });
+
+      // Gestione della risposta
+      if (response.status >= 400) {
+        const errorText =
+          typeof response.data === "string" ? response.data : JSON.stringify(response.data);
+        throw new Error(`Errore nell'invio dell'ID Token: ${response.status} - ${errorText}`);
+      }
+
+      // Estrai il redirect URL dalla risposta
+      let redirectUrl = null;
+
+      // Caso 1: Redirect esplicito (302, 303, 307)
+      if ([302, 303, 307].includes(response.status)) {
+        // Gli headers potrebbero essere lowercase o avere il case originale
+        redirectUrl = response.headers.location || response.headers.Location;
+        if (redirectUrl) {
+          console.log(`APP-EBSI: 📥 Location header (redirect ${response.status}):`, redirectUrl);
+        } else {
+          console.warn(`APP-EBSI: ⚠️ Status ${response.status} ma Location header mancante`);
+          console.log("APP-EBSI: Headers disponibili:", Object.keys(response.headers));
+        }
+      }
+
+      // Caso 2: Risposta 200 con redirect_uri nel body
+      if (!redirectUrl && response.data) {
+        // Se c'è un body, proviamo a parsarlo
+        try {
+          const responseData =
+            typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+          console.log("APP-EBSI: 📥 Risposta da direct_post:", responseData);
+
+          if (responseData.redirect_uri) {
+            redirectUrl = responseData.redirect_uri;
+            console.log("APP-EBSI: 📥 Redirect URI dal body:", redirectUrl);
+          }
+        } catch (e) {
+          console.warn("APP-EBSI: ⚠️ Impossibile parsare response.data come JSON");
+        }
+      }
+
+      // Caso 3: CapacitorHttp ha seguito automaticamente il redirect
+      // In questo caso response.url conterrà l'URL finale dopo i redirect
+      if (!redirectUrl && response.url && response.url !== redirectUri) {
+        redirectUrl = response.url;
+        console.log("APP-EBSI: 📥 Redirect automatico seguito, URL finale:", redirectUrl);
+      }
+
+      // Se abbiamo un redirect URL, processalo
+      if (redirectUrl) {
+        console.log("APP-EBSI: 📥 Redirect URI ricevuto:", redirectUrl);
+
+        // Verifica se il redirect contiene un errore
+        if (redirectUrl.includes("error=")) {
+          // Parse error from redirect URL
+          try {
+            const urlObj = new URL(redirectUrl);
+            const error = urlObj.searchParams.get("error");
+            const errorDescription = decodeURIComponent(
+              urlObj.searchParams.get("error_description") || ""
+            );
+
+            console.error("APP-EBSI: ❌ Errore dal direct_post:");
+            console.error("  - error:", error);
+            console.error("  - error_description:", errorDescription);
+
+            throw new Error(`Auth Server error: ${errorDescription || error}`);
+          } catch (e) {
+            if (e.message.startsWith("Auth Server error:")) {
+              throw e;
+            }
+            throw new Error(`Errore nel redirect URL: ${redirectUrl}`);
+          }
+        }
+
+        console.log("APP-EBSI: ✅ ID Token accettato, redirect a:", redirectUrl);
+
+        // Il redirect_uri dovrebbe contenere il code per l'authorization code flow
+        // Trigger del redirect tramite Capacitor Browser per gestire il deep link correttamente
+        console.log("APP-EBSI: 🔄 Apertura redirect URL...");
+
+        // Usa Capacitor Browser per gestire l'URL custom scheme
+        await Browser.open({ url: redirectUrl, windowName: "_self" });
+      } else {
+        throw new Error("Nessun redirect_uri nella risposta dal direct_post");
+      }
+
+      setLoading(false);
     } catch (err) {
+      console.error("APP-EBSI: ❌ Errore nella gestione dell'ID Token Request:", err);
+      setError(err.message);
+      setLoading(false);
       throw err;
     }
   };
@@ -384,7 +764,33 @@ export default function CredentialOffer() {
           throw new Error(`Authorization error: ${errorMsg}`);
         }
       } else {
-        throw new Error(`Errore nella authorization request: ${authResponse.statusText}`);
+        // Tenta di leggere il body per maggiori dettagli sull'errore
+        let errorDetails = authResponse.statusText;
+        try {
+          const errorBody = await authResponse.text();
+          console.error("APP-EBSI: ❌ Authorization Response Error Body:", errorBody);
+
+          // Prova a parsare come JSON
+          try {
+            const errorJson = JSON.parse(errorBody);
+            if (errorJson.error) {
+              errorDetails = errorJson.error_description || errorJson.error;
+            } else if (errorJson.message) {
+              errorDetails = errorJson.message;
+            } else {
+              errorDetails = errorBody;
+            }
+          } catch {
+            // Non è JSON, usa il testo raw
+            errorDetails = errorBody || errorDetails;
+          }
+        } catch (e) {
+          console.error("APP-EBSI: ❌ Impossibile leggere error body:", e);
+        }
+
+        throw new Error(
+          `Errore nella authorization request (${authResponse.status}): ${errorDetails}`
+        );
       }
 
       console.log("APP-EBSI: 📨 ID Token Request params:", idTokenRequestParams);
@@ -443,13 +849,40 @@ export default function CredentialOffer() {
       }
 
       // Invia la risposta tramite POST (direct_post mode)
+      // redirect: 'manual' per gestire i 302 redirect manualmente
       const response = await fetch(redirectUri, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: responseBody.toString(),
+        redirect: "manual",
       });
+
+      // Gestisci redirect 302
+      if (response.type === "opaqueredirect" || response.status === 302) {
+        const locationHeader = response.headers.get("Location");
+        if (locationHeader) {
+          console.log("APP-EBSI: Redirect ricevuto verso:", locationHeader);
+          // Segui il redirect manualmente
+          const redirectResponse = await fetch(locationHeader, {
+            method: "GET",
+            redirect: "manual",
+          });
+          const authCodeResponse = await redirectResponse.json();
+          console.log("APP-EBSI: Authorization Code Response:", authCodeResponse);
+
+          const { code, state: codeState } = authCodeResponse;
+          if (!code) {
+            throw new Error("Authorization code non ricevuto");
+          }
+          if (codeState && codeState !== authStateData.state) {
+            throw new Error("State mismatch nella authorization response");
+          }
+          await exchangeCodeForToken(code, authStateData);
+          return;
+        }
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -574,7 +1007,10 @@ export default function CredentialOffer() {
         "  - credential_configuration_ids:",
         credentialOffer.credential_configuration_ids
       );
-      console.log("APP-EBSI:   - credentials:", credentialOffer.credentials);
+      console.log(
+        "APP-EBSI:   - credentials:",
+        JSON.stringify(credentialOffer.credentials, null, 2)
+      );
       console.log("APP-EBSI:   - grants:", JSON.stringify(credentialOffer.grants, null, 2));
 
       if (
@@ -585,12 +1021,15 @@ export default function CredentialOffer() {
       }
 
       // Prendi la prima configurazione (o implementa selezione multipla)
-      const credentialConfigId = Array.isArray(credentialConfigIds)
+      const credentialConfigItem = Array.isArray(credentialConfigIds)
         ? credentialConfigIds[0]
         : credentialConfigIds;
 
       console.log("APP-EBSI: 📍 Credential request a:", credentialEndpoint);
-      console.log("APP-EBSI: 📝 Credential config ID:", credentialConfigId);
+      console.log(
+        "APP-EBSI: 📝 Credential config item:",
+        JSON.stringify(credentialConfigItem, null, 2)
+      );
 
       // Prepara il body della richiesta
       const requestBody = {
@@ -603,25 +1042,29 @@ export default function CredentialOffer() {
 
       // Se usa credential_configuration_ids (nuovo formato)
       if (credentialOffer.credential_configuration_ids) {
-        requestBody.credential_identifier = credentialConfigId;
+        requestBody.credential_identifier = credentialConfigItem;
       } else {
-        // Formato legacy con types - deve essere sempre un array
-        if (typeof credentialConfigId === "string") {
-          requestBody.types = [credentialConfigId];
-        } else if (Array.isArray(credentialConfigId)) {
-          requestBody.types = credentialConfigId;
-        } else if (credentialConfigId?.types) {
-          // Se è un oggetto con campo types
-          requestBody.types = Array.isArray(credentialConfigId.types)
-            ? credentialConfigId.types
-            : [credentialConfigId.types];
+        // Formato legacy con credentials contenente oggetti con types
+        // EBSI usa questo formato: credentials: [{types: [...], format: "..."}]
+        if (typeof credentialConfigItem === "string") {
+          // String semplice: usa come type
+          requestBody.types = [credentialConfigItem];
+        } else if (credentialConfigItem?.types && Array.isArray(credentialConfigItem.types)) {
+          // Oggetto con campo types (formato EBSI)
+          requestBody.types = credentialConfigItem.types;
+          console.log("APP-EBSI: ✅ Types estratti dall'oggetto credential:", requestBody.types);
+        } else if (Array.isArray(credentialConfigItem)) {
+          // È già un array di types
+          requestBody.types = credentialConfigItem;
         } else {
           // Fallback: prova a estrarre types dal primo credential object
-          throw new Error("Formato credenziale non supportato");
+          throw new Error(
+            "Formato credenziale non supportato: " + JSON.stringify(credentialConfigItem)
+          );
         }
       }
 
-      console.log("APP-EBSI: Request body:", requestBody);
+      console.log("APP-EBSI: 📤 Credential Request body:", JSON.stringify(requestBody, null, 2));
 
       // Effettua la richiesta della credenziale
       const credentialResponse = await fetch(credentialEndpoint, {
@@ -793,7 +1236,29 @@ export default function CredentialOffer() {
     return (
       <PageBase title="Credential Offer">
         <Container maxWidth="sm" sx={{ py: 4 }}>
-          <Alert severity="error">Nessun credential offer fornito</Alert>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="body1" gutterBottom>
+              Nessun credential offer fornito
+            </Typography>
+            {location.state && (
+              <Typography variant="caption" component="div" sx={{ mt: 1 }}>
+                State ricevuto: {JSON.stringify(location.state, null, 2)}
+              </Typography>
+            )}
+          </Alert>
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Possibili cause:
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ pl: 2 }}>
+              <li>Il link non contiene i parametri necessari</li>
+              <li>L'app è stata aperta senza un credential offer valido</li>
+              <li>Il formato dell'URL non è corretto</li>
+            </Typography>
+          </Box>
+          <Button fullWidth variant="contained" onClick={() => navigate("/home")} sx={{ mt: 3 }}>
+            Torna alla Home
+          </Button>
         </Container>
       </PageBase>
     );

@@ -43,7 +43,44 @@ export async function signJWT(header, payload) {
     const privateKeyBytes = base64urlToBytes(privateKeyJwk.d);
 
     // Firma con P-256 in formato raw (IEEE P1363 r+s per ES256)
-    const signature = await p256.sign(messageHash, privateKeyBytes, { der: false });
+    // In @noble/curves v2.0.1, sign() returns a Signature object
+    const signatureObj = p256.sign(messageHash, privateKeyBytes);
+
+    // Debug: check what methods are available
+    console.log("APP-EBSI: Signature object type:", typeof signatureObj);
+    console.log(
+      "APP-EBSI: Signature object methods:",
+      Object.getOwnPropertyNames(Object.getPrototypeOf(signatureObj))
+    );
+
+    // Try different possible methods to get the compact bytes (r||s format)
+    let signature;
+    if (typeof signatureObj.toCompactBytes === "function") {
+      signature = signatureObj.toCompactBytes();
+    } else if (typeof signatureObj.toCompactRawBytes === "function") {
+      signature = signatureObj.toCompactRawBytes();
+    } else if (signatureObj instanceof Uint8Array) {
+      signature = signatureObj;
+    } else if (signatureObj.r !== undefined && signatureObj.s !== undefined) {
+      // Manual construction from r and s values
+      const rBytes =
+        typeof signatureObj.r === "bigint" ? numberToBytesBE(signatureObj.r, 32) : signatureObj.r;
+      const sBytes =
+        typeof signatureObj.s === "bigint" ? numberToBytesBE(signatureObj.s, 32) : signatureObj.s;
+      signature = new Uint8Array(64);
+      signature.set(rBytes, 0);
+      signature.set(sBytes, 32);
+    } else {
+      throw new Error("Unknown signature format from p256.sign()");
+    }
+
+    // Verifica che la signature sia esattamente 64 bytes
+    if (signature.length !== 64) {
+      console.error(`APP-EBSI: ❌ Signature length is ${signature.length}, expected 64 bytes`);
+      throw new Error(`Invalid signature length: ${signature.length}`);
+    }
+
+    console.log("APP-EBSI: ✅ Signature created, length:", signature.length);
 
     // Converti signature in base64url
     const signatureBase64url = bytesToBase64url(signature);
@@ -146,6 +183,21 @@ function base64urlToBytes(base64url) {
   const paddedBase64 = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
   const binary = atob(paddedBase64);
   return new Uint8Array(binary.split("").map((c) => c.charCodeAt(0)));
+}
+
+/**
+ * Converte un numero BigInt in bytes (big-endian)
+ * @param {bigint} num - Numero da convertire
+ * @param {number} length - Lunghezza in bytes
+ * @returns {Uint8Array} Bytes
+ */
+function numberToBytesBE(num, length) {
+  const hex = num.toString(16).padStart(length * 2, "0");
+  const bytes = new Uint8Array(length);
+  for (let i = 0; i < length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 /**
