@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Stack,
   Typography,
@@ -12,6 +13,13 @@ import {
   ListItemText,
   Divider,
   Avatar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import SettingsIcon from "@mui/icons-material/Settings";
@@ -20,7 +28,13 @@ import SecurityIcon from "@mui/icons-material/Security";
 import FingerprintIcon from "@mui/icons-material/Fingerprint";
 import InfoIcon from "@mui/icons-material/Info";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import PageBase from "../components/PageBase";
+import { clearDIDData } from "../storage/didStorage";
+import { clearAllCredentials } from "../storage/credentialStorage";
+import { clearAllSecure } from "../storage/secureStorage";
+import { Preferences } from "@capacitor/preferences";
 
 /**
  * Pagina impostazioni mobile-optimized
@@ -28,6 +42,53 @@ import PageBase from "../components/PageBase";
  */
 export default function Settings() {
   const navigate = useNavigate();
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  /**
+   * Elimina tutti i dati del wallet e resetta l'app
+   */
+  const handleResetWallet = async () => {
+    if (confirmText !== "ELIMINA") {
+      setError("Devi digitare 'ELIMINA' per confermare");
+      return;
+    }
+
+    setDeleting(true);
+    setError("");
+
+    try {
+      // 1. Elimina DID e chiavi
+      await clearDIDData();
+      console.log("APP-EBSI: DID data cleared");
+
+      // 2. Elimina tutte le credenziali
+      await clearAllCredentials();
+      console.log("APP-EBSI: Credentials cleared");
+
+      // 3. Pulisci secure storage
+      await clearAllSecure();
+      console.log("APP-EBSI: Secure storage cleared");
+
+      // 4. Pulisci Preferences
+      await Preferences.clear();
+      console.log("APP-EBSI: Preferences cleared");
+
+      // 5. Pulisci localStorage (stato wallet inizializzato, ecc.)
+      localStorage.clear();
+      console.log("APP-EBSI: LocalStorage cleared");
+
+      // 6. Reindirizza alla pagina iniziale
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error("APP-EBSI: Error resetting wallet:", err);
+      setError("Errore durante il reset del wallet: " + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const settingsItems = [
     {
@@ -50,6 +111,7 @@ export default function Settings() {
       subtitle: "Visualizza e gestisci il tuo DID",
       color: "primary.main",
       onClick: () => console.log("APP-EBSI: Gestione DID"),
+      showDangerZone: true, // Mostra zona pericolosa sotto questo item
     },
     {
       icon: InfoIcon,
@@ -128,6 +190,42 @@ export default function Settings() {
                   <ChevronRightIcon sx={{ color: "text.secondary" }} />
                 </ListItemButton>
               </ListItem>
+
+              {/* Danger Zone - Mostra dopo Gestione DID */}
+              {item.showDangerZone && (
+                <>
+                  <Divider />
+                  <Box sx={{ p: 2.5, bgcolor: "rgba(211, 47, 47, 0.03)" }}>
+                    <Stack spacing={1.5}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <WarningAmberIcon sx={{ color: "error.main", fontSize: 20 }} />
+                        <Typography variant="body2" fontWeight={600} color="error">
+                          Zona Pericolosa
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Questa azione eliminerà permanentemente tutti i dati del wallet: DID, chiavi
+                        private, credenziali e impostazioni. Operazione irreversibile.
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<DeleteForeverIcon />}
+                        onClick={() => setOpenDeleteDialog(true)}
+                        sx={{
+                          borderRadius: 2,
+                          textTransform: "none",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Elimina Wallet e Reset
+                      </Button>
+                    </Stack>
+                  </Box>
+                </>
+              )}
+
               {index < settingsItems.length - 1 && <Divider />}
             </Box>
           ))}
@@ -167,6 +265,97 @@ export default function Settings() {
           Torna alla Home
         </Button>
       </Box>
+
+      {/* Dialog conferma eliminazione */}
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => !deleting && setOpenDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <WarningAmberIcon sx={{ color: "error.main", fontSize: 28 }} />
+            <Typography variant="h6" fontWeight={700}>
+              Conferma Eliminazione Wallet
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2}>
+            <Alert severity="error" variant="outlined">
+              <Typography variant="body2" fontWeight={600} gutterBottom>
+                ⚠️ Operazione irreversibile!
+              </Typography>
+              <Typography variant="caption">Verranno eliminati permanentemente:</Typography>
+              <ul style={{ margin: "8px 0 0 0", paddingLeft: "20px" }}>
+                <li>
+                  <Typography variant="caption">DID e identità digitale</Typography>
+                </li>
+                <li>
+                  <Typography variant="caption">Chiavi private e pubbliche</Typography>
+                </li>
+                <li>
+                  <Typography variant="caption">Tutte le credenziali verificabili</Typography>
+                </li>
+                <li>
+                  <Typography variant="caption">Impostazioni e preferenze</Typography>
+                </li>
+              </ul>
+            </Alert>
+
+            {error && (
+              <Alert severity="error" onClose={() => setError("")}>
+                {error}
+              </Alert>
+            )}
+
+            <Box>
+              <Typography variant="body2" gutterBottom fontWeight={600}>
+                Per confermare, digita <strong>ELIMINA</strong> nel campo sottostante:
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="ELIMINA"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                disabled={deleting}
+                sx={{ mt: 1 }}
+                inputProps={{
+                  style: { textTransform: "uppercase" },
+                }}
+              />
+            </Box>
+
+            <Alert severity="info" variant="outlined">
+              <Typography variant="caption">
+                💡 Assicurati di aver fatto il backup della tua seed phrase prima di procedere.
+              </Typography>
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => {
+              setOpenDeleteDialog(false);
+              setConfirmText("");
+              setError("");
+            }}
+            disabled={deleting}
+          >
+            Annulla
+          </Button>
+          <Button
+            onClick={handleResetWallet}
+            color="error"
+            variant="contained"
+            disabled={confirmText !== "ELIMINA" || deleting}
+            startIcon={deleting ? <CircularProgress size={20} /> : <DeleteForeverIcon />}
+          >
+            {deleting ? "Eliminazione..." : "Elimina Tutto"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </PageBase>
   );
 }
