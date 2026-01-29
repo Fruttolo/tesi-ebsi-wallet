@@ -1,0 +1,70 @@
+/* High contrast theme per accessibilità */
+@media (prefers-contrast: high) {
+  :root {
+    --primary-color: #0000ff;
+    --background-color: #ffffff;
+    --text-color: #000000;
+    --border-color: #000000;
+  }
+
+  .MuiButton-contained {
+    border: 2px solid #000;
+    font-weight: bold;
+  }
+
+  .MuiCard-root {
+    border: 2px solid #000;
+  }
+
+  .MuiOutlinedInput-root {
+    border: 2px solid #000;
+  }
+
+  .MuiAlert-root {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Supporto per reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus visibile per keyboard navigation */
+*:focus-visible {
+  outline: 3px solid #1976d2;
+  outline-offset: 2px;
+}
+
+/* Aumenta dimensioni touch targets per accessibilità */
+button,
+a,
+input,
+select,
+textarea {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Migliora leggibilità del testo */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Contrasto sufficiente per il testo */
+.MuiTypography-colorTextSecondary {
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Assicura che gli errori siano ben visibili */
+.MuiFormHelperText-root.Mui-error {
+  font-weight: 500;
+}

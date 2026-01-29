@@ -1,102 +1,254 @@
-import { useState } from "react";
-import { generateDid, getDid } from "../utils/Utils";
-import { Button, Grid, TextField, Typography } from "@mui/material";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Chip,
+  Avatar,
+  Button,
+  Alert,
+} from "@mui/material";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
+import AddIcon from "@mui/icons-material/Add";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import { Toast } from "@capacitor/toast";
 import PageBase from "../components/PageBase";
+import { getDID } from "../storage/didStorage";
 
+/**
+ * Home page principale del wallet - Dashboard mobile-optimized
+ */
 export default function Home() {
-	const [message, setMessage] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [did, setDid] = useState("");
+  const [credentialsCount, setCredentialsCount] = useState(0);
+  const [error, setError] = useState("");
 
-	const [mnemonic, setMnemonic] = useState("");
-	const [mnemonicInput, setMnemonicInput] = useState("");
+  useEffect(() => {
+    loadWalletInfo();
 
-	const [did, setDid] = useState("");
+    // Gestisci eventuali errori passati tramite state
+    if (location.state?.error) {
+      setError(location.state.error);
+      // Pulisci lo state dopo aver mostrato l'errore
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
-	const [historyDid, setHistoryDid] = useState([]);
+  const loadWalletInfo = async () => {
+    try {
+      const userDid = await getDID();
+      setDid(userDid || "");
 
-	return (
-		<PageBase title="DID Ebsi Home">
-			<Grid container direction="column" sx={{ padding: "10px" }}>
-				<Grid item xs={12} sx={{ marginBottom: "10px" }}>
-					<Button
-						variant="contained"
-						onClick={async () => {
-							await generateDid().then((res) => {
-								setMessage("Generated new DID");
-								setMnemonic(res);
-								getDid().then((didRes) => {
-									setDid(didRes);
-									setHistoryDid((prevHistory) => [...prevHistory, didRes]);
-								});
-							});
-						}}
-					>
-						Generate New DID
-					</Button>
-					<Button
-						variant="contained"
-						style={{ marginLeft: "10px" }}
-						onClick={() => {
-							setMessage("");
-							setMnemonic("");
-							setDid("");
-							setMnemonicInput("");
-						}}
-					>
-						Clear
-					</Button>
-				</Grid>
-				<Grid
-					item
-					xs={12}
-					style={{
-						marginBottom: "10px",
-						wordBreak: "break-all",
-					}}
-				>
-					Message: {message} <br /> <br />
-					Mnemonic: {mnemonic} <br /> <br />
-					Did: {did}
-				</Grid>
-				<Grid item xs={12} sx={{ alignItems: "center", marginBottom: "20px" }}>
-					<TextField
-						type="text"
-						placeholder="Enter your mnemonic here"
-						value={mnemonicInput}
-						onChange={(e) => setMnemonicInput(e.target.value)}
-					/>
-					<Button
-						variant="contained"
-						onClick={() => {
-							generateDid(mnemonicInput).then((res) => {
-								setMessage("Restored DID");
-								setMnemonic(res);
-								getDid().then((didRes) => {
-									setDid(didRes);
-									setHistoryDid((prevHistory) => [...prevHistory, didRes]);
-								});
-							});
-						}}
-					>
-						Restore DID
-					</Button>
-				</Grid>
-				<Grid item xs={12} sx={{ alignItems: "center", marginBottom: "10px" }}>
-					<Typography variant="h7"> History DID </Typography>
-					<Grid
-						style={{
-							marginTop: "20px",
-							wordBreak: "break-all",
-						}}
-					>
-						{/* Elenco dei DID generati in precedenza dal piu recente al meno recente */}
-						{[...historyDid].reverse().map((item, index) => (
-							<Grid key={index} style={{ marginBottom: "10px" }}>
-								{item}
-							</Grid>
-						))}
-					</Grid>
-				</Grid>
-			</Grid>
-		</PageBase>
-	);
+      // TODO: Caricare numero credenziali dal vcManager
+      setCredentialsCount(0);
+    } catch (error) {
+      console.error("APP-EBSI: Errore caricamento info wallet:", error);
+    }
+  };
+
+  const shortDid = did ? `${did.slice(0, 15)}...${did.slice(-8)}` : "Caricamento...";
+
+  const handleCopyDID = async () => {
+    if (!did) return;
+
+    try {
+      console.log("APP-EBSI: Copia del DID negli appunti:", did);
+      await navigator.clipboard.writeText(did);
+      await Toast.show({
+        text: "DID copiato negli appunti",
+        duration: "short",
+        position: "bottom",
+      });
+    } catch (error) {
+      console.error("APP-EBSI: Errore durante la copia del DID:", error);
+      await Toast.show({
+        text: "Errore durante la copia",
+        duration: "short",
+        position: "bottom",
+      });
+    }
+  };
+
+  // Card azioni rapide - ottimizzate per touch
+  const QuickActionCard = ({ icon: Icon, title, subtitle, onClick, color = "primary.main" }) => (
+    <Card
+      onClick={onClick}
+      sx={{
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        height: "100%",
+        background:
+          "linear-gradient(135deg, rgba(96, 165, 250, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)",
+        border: "1px solid rgba(96, 165, 250, 0.2)",
+        "&:active": {
+          transform: "scale(0.97)",
+        },
+        // Feedback visivo per touch
+        touchAction: "manipulation",
+      }}
+    >
+      <CardContent
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center",
+          py: 3,
+        }}
+      >
+        <Avatar
+          sx={{
+            width: 56,
+            height: 56,
+            mb: 2,
+            bgcolor: "transparent",
+            border: `2px solid ${color}`,
+          }}
+        >
+          <Icon sx={{ fontSize: 32, color }} />
+        </Avatar>
+        <Typography variant="h6" fontWeight={600} gutterBottom>
+          {title}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {subtitle}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+
+  return (
+    <PageBase title="Il Tuo Wallet">
+      {/* Messaggio di errore se presente */}
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Info DID Card */}
+      <Card
+        sx={{
+          mb: 3,
+          background:
+            "linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)",
+          border: "1px solid rgba(96, 165, 250, 0.3)",
+        }}
+      >
+        <CardContent sx={{ textAlign: "center", py: 3 }}>
+          <AccountBalanceWalletIcon sx={{ fontSize: 48, color: "primary.main", mb: 2 }} />
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Il tuo DID
+          </Typography>
+          <Chip
+            label={shortDid}
+            icon={<ContentCopyIcon sx={{ fontSize: "1rem" }} />}
+            variant="outlined"
+            onClick={handleCopyDID}
+            sx={{
+              fontFamily: "monospace",
+              fontSize: "0.8rem",
+              maxWidth: "100%",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              "&:hover": {
+                borderColor: "primary.main",
+                bgcolor: "rgba(96, 165, 250, 0.1)",
+              },
+              "&:active": {
+                transform: "scale(0.97)",
+              },
+              "& .MuiChip-label": {
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              },
+            }}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Azioni Rapide - 2x2 grid per mobile */}
+      <Grid container spacing={2}>
+        <Grid item xs={6}>
+          <QuickActionCard
+            icon={VerifiedUserIcon}
+            title="Credenziali"
+            subtitle={`${credentialsCount} salvate`}
+            onClick={() => navigate("/credentials")}
+            color="primary.main"
+          />
+        </Grid>
+
+        <Grid item xs={6}>
+          <QuickActionCard
+            icon={QrCodeScannerIcon}
+            title="Scansiona"
+            subtitle="Verifica identità"
+            onClick={() => navigate("/scan-qr")}
+            color="secondary.main"
+          />
+        </Grid>
+
+        <Grid item xs={6}>
+          <QuickActionCard
+            icon={AddIcon}
+            title="Aggiungi"
+            subtitle="Nuova credenziale"
+            onClick={() => navigate("/add-credential")}
+            color="success.main"
+          />
+        </Grid>
+
+        <Grid item xs={6}>
+          <Card
+            sx={{
+              height: "100%",
+              background:
+                "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
+              border: "1px solid rgba(16, 185, 129, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <CardContent sx={{ textAlign: "center", py: 2 }}>
+              <Typography variant="h3" fontWeight={700} color="success.main">
+                {credentialsCount}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Credenziali attive
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Info Card */}
+      <Card
+        sx={{
+          mt: 3,
+          bgcolor: "rgba(96, 165, 250, 0.05)",
+          border: "1px solid rgba(96, 165, 250, 0.2)",
+        }}
+      >
+        <CardContent>
+          <Typography variant="h6" gutterBottom fontWeight={600}>
+            💡 Benvenuto
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Il tuo wallet EBSI è pronto per gestire credenziali verificabili con privacy by design.
+            Usa il menu in basso per navigare.
+          </Typography>
+        </CardContent>
+      </Card>
+    </PageBase>
+  );
 }
