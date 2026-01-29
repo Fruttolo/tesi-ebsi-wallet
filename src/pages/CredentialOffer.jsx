@@ -106,8 +106,33 @@ export default function CredentialOffer() {
 
       // Caso 2: Authorization Response con code
       if (authCode && incomingState) {
-        console.log("APP-EBSI: 🔄 Processing authorization callback from deep link");
+        console.log("APP-EBSI: 🔄 Processing authorization callback");
 
+        // Se i metadata arrivano nello state (ritorno da VP Token flow), usali
+        if (location.state?.issuerMetadata && location.state?.authServerMetadata) {
+          console.log("APP-EBSI: ✅ Metadata già disponibili nello state");
+          setIssuerMetadata(location.state.issuerMetadata);
+          setAuthServerMetadata(location.state.authServerMetadata);
+
+          // Ricostruisci authState
+          const authStateData = {
+            state: incomingState,
+            codeVerifier: location.state.pkceCodeVerifier,
+            credentialOffer: location.state.credentialOffer,
+            authServerMetadata: location.state.authServerMetadata,
+            issuerMetadata: location.state.issuerMetadata,
+          };
+
+          try {
+            await exchangeCodeForToken(authCode, authStateData);
+          } catch (err) {
+            console.error("APP-EBSI: Errore nel processing del callback:", err);
+            setError(err.message);
+          }
+          return;
+        }
+
+        // Altrimenti recupera da sessionStorage
         const savedState = sessionStorage.getItem("authState");
         if (savedState) {
           try {
@@ -121,6 +146,8 @@ export default function CredentialOffer() {
             console.error("APP-EBSI: Errore nel processing del callback:", err);
             setError(err.message);
           }
+        } else {
+          setError("Auth state non trovato - riprova il flusso");
         }
       }
     };
@@ -470,6 +497,17 @@ export default function CredentialOffer() {
         const error = url.searchParams.get("error");
         const errorDescription = url.searchParams.get("error_description");
 
+        // Recupera authState salvato precedentemente
+        const savedAuthState = sessionStorage.getItem("authState");
+        let currentAuthStateData = authState;
+        if (savedAuthState) {
+          try {
+            currentAuthStateData = JSON.parse(savedAuthState);
+          } catch (err) {
+            console.error("APP-EBSI: ❌ Errore parsing authState:", err);
+          }
+        }
+
         // Gestisci errori
         if (error) {
           console.error("APP-EBSI: ❌ Authorization error:", error, errorDescription);
@@ -481,7 +519,48 @@ export default function CredentialOffer() {
           return;
         }
 
-        // Caso 1: ID Token Request dall'authorization server
+        // Caso 1: VP Token Request dall'authorization server (CT Qualification)
+        if (responseType === "vp_token") {
+          console.log("APP-EBSI: 🎫 VP Token Request ricevuto - CT Qualification Flow");
+          const clientId = url.searchParams.get("client_id");
+          const nonce = url.searchParams.get("nonce");
+          const redirectUri = url.searchParams.get("redirect_uri");
+          const requestJwt = url.searchParams.get("request");
+          const presentationDefinitionUri = url.searchParams.get("presentation_definition_uri");
+
+          console.log("APP-EBSI: 📋 VP Token Request params:");
+          console.log("APP-EBSI:   - client_id:", clientId);
+          console.log("APP-EBSI:   - nonce:", nonce);
+          console.log("APP-EBSI:   - redirect_uri:", redirectUri);
+          console.log("APP-EBSI:   - state:", state);
+          console.log("APP-EBSI:   - presentation_definition_uri:", presentationDefinitionUri || "N/A");
+          console.log("APP-EBSI:   - request JWT:", requestJwt ? "presente" : "N/A");
+
+          // Naviga alla pagina PresentationRequest per gestire la VP
+          navigate("/presentation-request", {
+            state: {
+              vpTokenRequest: {
+                clientId,
+                nonce,
+                redirectUri,
+                state,
+                presentationDefinitionUri,
+                requestJwt,
+              },
+              // Passa anche lo state corrente per poter continuare il flusso dopo
+              credentialOfferState: {
+                credentialOffer,
+                issuerMetadata,
+                authServerMetadata,
+                pkceCodeVerifier: currentAuthStateData?.codeVerifier,
+                authState: currentAuthStateData?.state,
+              },
+            },
+          });
+          return;
+        }
+
+        // Caso 2: ID Token Request dall'authorization server
         if (responseType === "id_token") {
           console.log("APP-EBSI: 🆔 ID Token Request ricevuto dall'authorization server");
           const clientId = url.searchParams.get("client_id");
@@ -511,7 +590,7 @@ export default function CredentialOffer() {
           return;
         }
 
-        // Caso 2: Authorization Response con code
+        // Caso 3: Authorization Response con code
         if (code && state) {
           console.log("APP-EBSI: ✅ Authorization code ricevuto");
           console.log("APP-EBSI:   - code:", code.substring(0, 20) + "...");

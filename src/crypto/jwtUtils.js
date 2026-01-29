@@ -293,12 +293,14 @@ export async function createVPToken(credentials, holderDid, nonce, audience) {
     kid: getKeyIdFromDID(holderDid),
   };
 
+  const now = Math.floor(Date.now() / 1000);
   const payload = {
     iss: holderDid,
     sub: holderDid,
     aud: audience,
-    iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + 600, // 10 minuti
+    iat: now,
+    nbf: now, // Not Before - required by EBSI
+    exp: now + 600, // 10 minuti
     nonce: nonce,
     vp: vp,
   };

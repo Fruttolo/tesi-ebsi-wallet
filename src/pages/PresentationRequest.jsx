@@ -20,6 +20,7 @@ import {
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import { CapacitorHttp } from "@capacitor/core";
 import PageBase from "../components/PageBase";
 import { getStoredCredentials } from "../storage/credentialStorage";
 import { getDIDDocument } from "../identity/didManager";
@@ -34,7 +35,7 @@ export default function PresentationRequest() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { uri, type } = location.state || {};
+  const { uri, type, vpTokenRequest, credentialOfferState } = location.state || {};
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -45,6 +46,13 @@ export default function PresentationRequest() {
   const [verifierInfo, setVerifierInfo] = useState(null);
 
   useEffect(() => {
+    // Se arriva da un VP Token Request durante il credential offer flow
+    if (vpTokenRequest) {
+      console.log("APP-EBSI: VP Token Request da Authorization Server (CT Qualification)");
+      handleVPTokenRequest(vpTokenRequest);
+      return;
+    }
+
     if (!uri) {
       setError("Nessun URI di presentation request fornito");
       return;
@@ -52,7 +60,87 @@ export default function PresentationRequest() {
 
     // Avvia il parsing della request
     parsePresentationRequest();
-  }, [uri]);
+  }, [uri, vpTokenRequest]);
+
+  /**
+   * Gestisce VP Token Request da Authorization Server (CT Qualification Flow)
+   */
+  const handleVPTokenRequest = async (vpRequest) => {
+    setLoading(true);
+    setError("");
+
+    try {
+      console.log("APP-EBSI: Processing VP Token Request:", vpRequest);
+
+      const { clientId, nonce, redirectUri, presentationDefinitionUri, requestJwt, state } =
+        vpRequest;
+
+      // Se c'è il JWT request, decodificalo per ottenere più dettagli
+      let requestPayload = {};
+      if (requestJwt) {
+        try {
+          const decoded = decodeJWT(requestJwt);
+          console.log("APP-EBSI: Request JWT decodificato:", decoded);
+          requestPayload = decoded;
+        } catch (e) {
+          console.warn("APP-EBSI: Impossibile decodificare request JWT:", e);
+        }
+      }
+
+      // Imposta le informazioni del verifier
+      setVerifierInfo({
+        clientId: clientId,
+        nonce: nonce || requestPayload.nonce,
+        responseUri: redirectUri,
+        responseMode: "direct_post",
+        state: state,
+      });
+
+      // Ottieni la presentation definition (embedded o by reference)
+      let presentationDefinition;
+
+      // Prima prova con presentation_definition embedded nel JWT
+      if (requestPayload.presentation_definition) {
+        console.log("APP-EBSI: Presentation definition embedded trovata nel JWT");
+        presentationDefinition = requestPayload.presentation_definition;
+      } else {
+        // Altrimenti scarica da URI
+        const defUri = presentationDefinitionUri || requestPayload.presentation_definition_uri;
+
+        if (defUri) {
+          console.log("APP-EBSI: Scaricamento presentation definition da:", defUri);
+          const response = await fetch(defUri);
+          if (!response.ok) {
+            throw new Error(`Errore download presentation definition: ${response.statusText}`);
+          }
+          presentationDefinition = await response.json();
+        } else {
+          throw new Error("Né presentation_definition né presentation_definition_uri trovati");
+        }
+      }
+
+      console.log("APP-EBSI: Presentation Definition:", presentationDefinition);
+
+      // Simula la struttura della presentation request
+      setPresentationRequest({
+        presentation_definition: presentationDefinition,
+        response_type: "vp_token",
+        response_mode: "direct_post",
+        client_id: clientId,
+        nonce: nonce || requestPayload.nonce,
+        state: state,
+      });
+
+      // Trova le credenziali che matchano
+      await findMatchingCredentials(presentationDefinition);
+
+      setLoading(false);
+    } catch (err) {
+      console.error("APP-EBSI: Errore gestione VP Token Request:", err);
+      setError(err.message || "Errore durante la gestione della VP Token Request");
+      setLoading(false);
+    }
+  };
 
   /**
    * Step 1: Parse della Presentation Request
@@ -493,26 +581,148 @@ export default function PresentationRequest() {
 
       // Invia in base al response_mode
       if (responseMode === "direct_post" || responseMode === "post") {
-        // POST diretto
-        const response = await fetch(responseUri, {
-          method: "POST",
+        // POST diretto con CapacitorHttp
+        const response = await CapacitorHttp.post({
+          url: responseUri,
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-          body: new URLSearchParams(responseData).toString(),
+          data: new URLSearchParams(responseData).toString(),
         });
 
-        if (!response.ok) {
-          const errorText = await response.text().catch(() => "");
+        console.log("APP-EBSI: 📥 Response status:", response.status);
+        console.log("APP-EBSI: 📥 Response headers:", response.headers);
+        console.log(
+          "APP-EBSI: 📥 Response data:",
+          typeof response.data === "string" ? response.data.substring(0, 200) : response.data
+        );
+
+        // Gestione errori
+        if (response.status >= 400) {
+          const errorText =
+            typeof response.data === "string" ? response.data : JSON.stringify(response.data);
           throw new Error(
-            `Errore nell'invio della presentation: ${response.statusText} ${errorText}`
+            `Errore nell'invio della presentation: ${response.status} - ${errorText}`
           );
         }
 
-        const result = await response.json().catch(() => ({}));
+        // Estrai il redirect URL dalla risposta
+        let redirectUrl = null;
+
+        // Caso 1: Redirect esplicito (302, 303, 307)
+        if ([302, 303, 307].includes(response.status)) {
+          console.log("APP-EBSI: 🔄 Redirect ricevuto (status code)");
+          redirectUrl = response.headers?.location || response.headers?.Location;
+        }
+
+        // Caso 2: Redirect nel body JSON come redirect_uri
+        if (!redirectUrl && response.data) {
+          try {
+            const data =
+              typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+            if (data.redirect_uri) {
+              console.log("APP-EBSI: 🔄 Redirect trovato nel body JSON");
+              redirectUrl = data.redirect_uri;
+            }
+          } catch (e) {
+            // Non è JSON, ignora
+          }
+        }
+
+        // Caso 3: CapacitorHttp ha seguito automaticamente il redirect
+        // L'URL finale potrebbe essere in response.url
+        if (!redirectUrl && response.url && response.url.startsWith("openid://")) {
+          console.log("APP-EBSI: 🔄 CapacitorHttp ha seguito il redirect automaticamente");
+          redirectUrl = response.url;
+        }
+
+        // Caso 4: Cerca openid:// nel body testuale
+        if (!redirectUrl && typeof response.data === "string") {
+          const openidMatch = response.data.match(/openid:\/\/\?[^\s"'<>]+/);
+          if (openidMatch) {
+            console.log("APP-EBSI: 🔄 Redirect trovato nel body testuale");
+            redirectUrl = openidMatch[0];
+          }
+        }
+
+        console.log("APP-EBSI: Redirect URL finale:", redirectUrl);
+
+        // Se abbiamo un redirect URL, estrailo
+        if (redirectUrl) {
+          try {
+            const parsedUrl = new URL(redirectUrl);
+            const code = parsedUrl.searchParams.get("code");
+            const redirectState = parsedUrl.searchParams.get("state");
+
+            if (code) {
+              console.log("APP-EBSI: ✅ Authorization code ricevuto dopo VP");
+              console.log("APP-EBSI:   - code:", code.substring(0, 20) + "...");
+              console.log("APP-EBSI:   - state:", redirectState);
+
+              // Torna alla pagina credential offer con il code per continuare
+              if (credentialOfferState) {
+                navigate("/credential-offer", {
+                  state: {
+                    authCode: code,
+                    authState: redirectState,
+                    credentialOffer: credentialOfferState.credentialOffer,
+                    issuerMetadata: credentialOfferState.issuerMetadata,
+                    authServerMetadata: credentialOfferState.authServerMetadata,
+                    pkceCodeVerifier: credentialOfferState.pkceCodeVerifier,
+                  },
+                });
+                return;
+              }
+            }
+          } catch (parseErr) {
+            console.warn("APP-EBSI: Errore parsing redirect URL:", parseErr);
+          }
+        }
+
+        // Prova a leggere JSON response per altri casi
+        let result = {};
+        try {
+          result = typeof response.data === "string" ? JSON.parse(response.data) : response.data;
+        } catch (e) {
+          result = response.data || {};
+        }
         console.log("APP-EBSI: Risposta dal verifier:", result);
 
-        // Successo
+        // Se siamo nel flusso CT Qualification (con credentialOfferState), gestisci il redirect
+        if (credentialOfferState && result.redirect_uri) {
+          console.log("APP-EBSI: 🔄 Redirect ricevuto, continuazione flusso credential offer");
+          console.log("APP-EBSI: Redirect URI:", result.redirect_uri);
+
+          // Parse del redirect URI per estrarre il code
+          try {
+            const redirectUrl = new URL(result.redirect_uri);
+            const code = redirectUrl.searchParams.get("code");
+            const state = redirectUrl.searchParams.get("state");
+
+            if (code) {
+              console.log("APP-EBSI: ✅ Authorization code ricevuto dopo VP");
+              console.log("APP-EBSI:   - code:", code.substring(0, 20) + "...");
+              console.log("APP-EBSI:   - state:", state);
+
+              // Torna alla pagina credential offer con il code per continuare
+              navigate("/credential-offer", {
+                state: {
+                  authCode: code,
+                  authState: state,
+                  credentialOffer: credentialOfferState.credentialOffer,
+                  issuerMetadata: credentialOfferState.issuerMetadata,
+                  authServerMetadata: credentialOfferState.authServerMetadata,
+                  pkceCodeVerifier: credentialOfferState.pkceCodeVerifier,
+                },
+              });
+              return;
+            }
+          } catch (parseErr) {
+            console.error("APP-EBSI: Errore parsing redirect URI:", parseErr);
+          }
+        }
+
+        // Successo - caso standard (non CT Qualification)
         setLoading(false);
         navigate("/credentials", {
           state: {
@@ -545,7 +755,7 @@ export default function PresentationRequest() {
     );
   };
 
-  if (!uri) {
+  if (!uri && !vpTokenRequest) {
     return (
       <PageBase title="Presentation Request">
         <Container maxWidth="sm" sx={{ py: 4 }}>
