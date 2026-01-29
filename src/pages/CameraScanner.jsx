@@ -353,6 +353,7 @@ export default function CameraScanner() {
               background: "rgba(0, 0, 0, 0.7)",
               backdropFilter: "blur(10px)",
               p: 3,
+              pb: 12,
               display: "flex",
               flexDirection: "column",
               alignItems: "center",

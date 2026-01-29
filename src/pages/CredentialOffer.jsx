@@ -15,7 +15,6 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
-import { Browser } from "@capacitor/browser";
 import PageBase from "../components/PageBase";
 import { getDIDDocument } from "../identity/didManager";
 import { createIDToken, createProofJWT } from "../crypto/jwtUtils";
@@ -53,13 +52,16 @@ export default function CredentialOffer() {
     console.log("APP-EBSI: CredentialOffer mounted");
     console.log("APP-EBSI: location.state:", JSON.stringify(location.state, null, 2));
 
-    if (authError) {
+    // Se stiamo processando un callback, non mostrare errori
+    const isProcessingCallback = idTokenRequest || authCode;
+
+    if (authError && !isProcessingCallback) {
       console.log("APP-EBSI: ❌ Auth error presente:", authError);
       setError(`Errore di autorizzazione: ${authError}`);
       return;
     }
 
-    if (!credentialOffer) {
+    if (!credentialOffer && !isProcessingCallback) {
       console.error("APP-EBSI: ❌ Credential offer mancante");
       console.error("APP-EBSI: 📊 State ricevuto:", location.state);
       console.error(
@@ -70,10 +72,16 @@ export default function CredentialOffer() {
       return;
     }
 
+    // Se stiamo processando un callback, non avviare il discovery
+    if (isProcessingCallback) {
+      console.log("APP-EBSI: ⏳ Processing callback, skip discovery");
+      return;
+    }
+
     console.log("APP-EBSI: ✅ Credential offer presente, avvio discovery");
     // Avvia il discovery
     discoverMetadata();
-  }, [credentialOffer, authError]);
+  }, [credentialOffer, authError, idTokenRequest, authCode]);
 
   // Gestisci il ritorno dall'authorization flow
   useEffect(() => {
@@ -218,9 +226,6 @@ export default function CredentialOffer() {
         console.log("APP-EBSI:   Ha match parziale:", hasMatch);
         console.log("APP-EBSI:   Ha match esatto:", hasExactMatch);
 
-        console.log("APP-EBSI:   Ha match parziale:", hasMatch);
-        console.log("APP-EBSI:   Ha match esatto:", hasExactMatch);
-
         if (!hasMatch && !hasExactMatch) {
           console.warn("⚠️ ATTENZIONE: Nessun credential type corrispondente trovato!");
           console.warn("   Questo potrebbe causare errori durante l'authorization.");
@@ -327,8 +332,14 @@ export default function CredentialOffer() {
       const tokenData = await tokenResponse.json();
       console.log("APP-EBSI: Token response:", tokenData);
 
+      // Crea un oggetto authStateData per passare i metadati necessari
+      const authStateData = {
+        credentialOffer,
+        issuerMetadata,
+      };
+
       // Procedi con la richiesta della credenziale
-      await requestCredential(tokenData);
+      await requestCredential(tokenData, authStateData);
     } catch (err) {
       throw err;
     }
@@ -700,13 +711,70 @@ export default function CredentialOffer() {
         }
 
         console.log("APP-EBSI: ✅ ID Token accettato, redirect a:", redirectUrl);
+        console.log("APP-EBSI: 🔄 Elaborazione redirect URL internamente");
 
-        // Il redirect_uri dovrebbe contenere il code per l'authorization code flow
-        // Trigger del redirect tramite Capacitor Browser per gestire il deep link correttamente
-        console.log("APP-EBSI: 🔄 Apertura redirect URL...");
+        let redirectHandled = false;
 
-        // Usa Capacitor Browser per gestire l'URL custom scheme
-        await Browser.open({ url: redirectUrl, windowName: "_self" });
+        try {
+          const redirectUrlObj = new URL(redirectUrl);
+          const responseType = redirectUrlObj.searchParams.get("response_type");
+
+          if (responseType === "id_token") {
+            const clientId = redirectUrlObj.searchParams.get("client_id");
+            const nonce = redirectUrlObj.searchParams.get("nonce");
+            const nextRedirectUri = redirectUrlObj.searchParams.get("redirect_uri");
+            const redirectStateParam = redirectUrlObj.searchParams.get("state");
+            const requestUri = redirectUrlObj.searchParams.get("request_uri");
+
+            console.log("APP-EBSI: 📋 Redirect richiede nuovo ID Token:");
+            console.log("  - client_id:", clientId);
+            console.log("  - nonce:", nonce);
+            console.log("  - redirect_uri:", nextRedirectUri);
+            console.log("  - state:", redirectStateParam);
+            console.log("  - request_uri:", requestUri || "N/A");
+
+            navigate("/credential-offer", {
+              state: {
+                idTokenRequest: {
+                  clientId,
+                  nonce,
+                  redirectUri: nextRedirectUri,
+                  state: redirectStateParam,
+                  requestUri,
+                },
+              },
+            });
+
+            redirectHandled = true;
+          }
+
+          if (!redirectHandled) {
+            const code = redirectUrlObj.searchParams.get("code");
+            const redirectStateParam = redirectUrlObj.searchParams.get("state");
+
+            if (code && redirectStateParam) {
+              console.log("APP-EBSI: 📥 Authorization code rilevato dal redirect");
+              console.log("  - code:", code.substring(0, 20) + "...");
+              console.log("  - state:", redirectStateParam);
+
+              navigate("/credential-offer", {
+                state: {
+                  authCode: code,
+                  authState: redirectStateParam,
+                },
+              });
+
+              redirectHandled = true;
+            }
+          }
+        } catch (parseError) {
+          console.error("APP-EBSI: ❌ Redirect URI non valido:", redirectUrl);
+          throw new Error(`Redirect URI non valido: ${redirectUrl}`);
+        }
+
+        if (!redirectHandled) {
+          throw new Error("Redirect URI ricevuto ma nessun parametro gestibile trovato");
+        }
       } else {
         throw new Error("Nessun redirect_uri nella risposta dal direct_post");
       }
@@ -921,6 +989,13 @@ export default function CredentialOffer() {
     try {
       console.log("APP-EBSI: Exchange authorization code per access token");
 
+      // Recupera il DID del wallet per usarlo come client_id
+      const didDocument = await getDIDDocument();
+      if (!didDocument || !didDocument.id) {
+        throw new Error("DID del wallet non trovato");
+      }
+      const holderDid = didDocument.id;
+
       const tokenEndpoint = authStateData.authServerMetadata.token_endpoint;
       const redirectUri = "openid://";
 
@@ -929,9 +1004,17 @@ export default function CredentialOffer() {
         code: code,
         redirect_uri: redirectUri,
         code_verifier: authStateData.codeVerifier,
+        client_id: holderDid,
       });
 
       console.log("APP-EBSI: Token request to:", tokenEndpoint);
+      console.log("APP-EBSI: Token request params:", {
+        grant_type: "authorization_code",
+        client_id: holderDid,
+        code: code.substring(0, 20) + "...",
+        redirect_uri: redirectUri,
+        code_verifier: authStateData.codeVerifier.substring(0, 20) + "...",
+      });
 
       const tokenResponse = await fetch(tokenEndpoint, {
         method: "POST",
@@ -956,7 +1039,7 @@ export default function CredentialOffer() {
       setAuthState(null);
 
       // Procedi con la richiesta della credenziale
-      await requestCredential(tokenData);
+      await requestCredential(tokenData, authStateData);
     } catch (err) {
       throw err;
     }
@@ -965,9 +1048,21 @@ export default function CredentialOffer() {
   /**
    * Step 3: Richiedi la credenziale usando l'access token
    */
-  const requestCredential = async (tokenData) => {
+  const requestCredential = async (tokenData, authStateData) => {
     try {
       const { access_token, c_nonce, token_type = "Bearer" } = tokenData;
+
+      // Recupera credentialOffer e issuerMetadata dall'authStateData
+      const credentialOfferData = authStateData.credentialOffer || credentialOffer;
+      const issuerMetadataData = authStateData.issuerMetadata || issuerMetadata;
+
+      if (!credentialOfferData) {
+        throw new Error("Credential offer non disponibile");
+      }
+
+      if (!issuerMetadataData) {
+        throw new Error("Issuer metadata non disponibile");
+      }
 
       // Recupera il DID del wallet
       const didDocument = await getDIDDocument();
@@ -982,10 +1077,14 @@ export default function CredentialOffer() {
       // Genera proof JWT firmato con il DID
       console.log("APP-EBSI: Creating proof JWT with:");
       console.log("APP-EBSI:   - iss (holder DID):", holderDid);
-      console.log("APP-EBSI:   - aud (credential_issuer):", credentialOffer.credential_issuer);
+      console.log("APP-EBSI:   - aud (credential_issuer):", credentialOfferData.credential_issuer);
       console.log("APP-EBSI:   - nonce (c_nonce):", c_nonce);
 
-      const proofJwt = await createProofJWT(holderDid, credentialOffer.credential_issuer, c_nonce);
+      const proofJwt = await createProofJWT(
+        holderDid,
+        credentialOfferData.credential_issuer,
+        c_nonce
+      );
 
       // Decodifica e mostra il JWT per debug
       const jwtParts = proofJwt.split(".");
@@ -998,20 +1097,20 @@ export default function CredentialOffer() {
 
       console.log("APP-EBSI: Proof JWT generato:", proofJwt.substring(0, 100) + "...");
 
-      const credentialEndpoint = issuerMetadata.credential_endpoint;
+      const credentialEndpoint = issuerMetadataData.credential_endpoint;
       const credentialConfigIds =
-        credentialOffer.credential_configuration_ids || credentialOffer.credentials;
+        credentialOfferData.credential_configuration_ids || credentialOfferData.credentials;
 
       console.log("APP-EBSI: 📋 Credential Offer Structure:");
       console.log(
         "  - credential_configuration_ids:",
-        credentialOffer.credential_configuration_ids
+        credentialOfferData.credential_configuration_ids
       );
       console.log(
         "APP-EBSI:   - credentials:",
-        JSON.stringify(credentialOffer.credentials, null, 2)
+        JSON.stringify(credentialOfferData.credentials, null, 2)
       );
-      console.log("APP-EBSI:   - grants:", JSON.stringify(credentialOffer.grants, null, 2));
+      console.log("APP-EBSI:   - grants:", JSON.stringify(credentialOfferData.grants, null, 2));
 
       if (
         !credentialConfigIds ||
@@ -1041,7 +1140,7 @@ export default function CredentialOffer() {
       };
 
       // Se usa credential_configuration_ids (nuovo formato)
-      if (credentialOffer.credential_configuration_ids) {
+      if (credentialOfferData.credential_configuration_ids) {
         requestBody.credential_identifier = credentialConfigItem;
       } else {
         // Formato legacy con credentials contenente oggetti con types
@@ -1106,7 +1205,16 @@ export default function CredentialOffer() {
 
       // Credenziale ricevuta immediatamente
       if (credentialData.credential) {
-        await saveReceivedCredential(credentialData.credential, credentialConfigId);
+        // Determina il tipo di credenziale per il salvataggio
+        let credentialType = "VerifiableCredential";
+        if (typeof credentialConfigItem === "string") {
+          credentialType = credentialConfigItem;
+        } else if (credentialConfigItem?.types && Array.isArray(credentialConfigItem.types)) {
+          // Usa l'ultimo type che di solito è il più specifico
+          credentialType = credentialConfigItem.types[credentialConfigItem.types.length - 1];
+        }
+
+        await saveReceivedCredential(credentialData.credential, credentialType);
         setLoading(false);
 
         navigate("/credentials", {
@@ -1136,7 +1244,7 @@ export default function CredentialOffer() {
       // Endpoint per deferred credential
       const deferredEndpoint =
         issuerMetadata.deferred_credential_endpoint ||
-        `${credentialEndpoint.replace("/credential", "")}/deferred_credential`;
+        `${credentialEndpoint.replace("/credential", "")}/deferred-credential`;
 
       console.log("APP-EBSI: Polling deferred credential da:", deferredEndpoint);
 
@@ -1145,7 +1253,6 @@ export default function CredentialOffer() {
         const response = await fetch(deferredEndpoint, {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             Authorization: `Bearer ${acceptanceToken}`,
           },
         });
@@ -1201,12 +1308,61 @@ export default function CredentialOffer() {
       // Se è JWT, decodifica per visualizzazione
       if (typeof credential === "string" && credential.split(".").length === 3) {
         console.log("APP-EBSI: Credenziale in formato JWT");
-        credentialToSave = {
-          jwt: credential,
-          type: type,
-          format: "jwt_vc",
-          receivedAt: new Date().toISOString(),
-        };
+
+        // Decodifica il JWT per estrarre il payload
+        try {
+          const jwtParts = credential.split(".");
+          const payload = JSON.parse(atob(jwtParts[1].replace(/-/g, "+").replace(/_/g, "/")));
+
+          console.log("APP-EBSI: JWT Payload decodificato:", payload);
+
+          // Il payload contiene il campo 'vc' con la credenziale W3C
+          const vcData = payload.vc || {};
+
+          // Crea l'oggetto credenziale con i campi necessari
+          // Assicurati che credentialSubject abbia sempre un id
+          const credentialSubject = vcData.credentialSubject || {};
+          if (!credentialSubject.id && payload.sub) {
+            credentialSubject.id = payload.sub;
+          }
+
+          credentialToSave = {
+            // Campi standard W3C VC
+            "@context": vcData["@context"] || ["https://www.w3.org/2018/credentials/v1"],
+            id: vcData.id || payload.jti || `urn:uuid:${Date.now()}`,
+            type: vcData.type || [type],
+            issuer: vcData.issuer || payload.iss,
+            issuanceDate:
+              vcData.issuanceDate || vcData.issued || new Date(payload.iat * 1000).toISOString(),
+            expirationDate:
+              vcData.expirationDate ||
+              (payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined),
+            credentialSubject: credentialSubject,
+            credentialSchema: vcData.credentialSchema,
+
+            // Metadata aggiuntivi
+            _jwt: credential, // Salva anche il JWT originale
+            _format: "jwt_vc",
+            _receivedAt: new Date().toISOString(),
+
+            // Salva anche l'oggetto vc originale per facilitare i match
+            vc: vcData,
+
+            // Copia tutti gli altri campi dal vc
+            ...vcData,
+          };
+
+          console.log("APP-EBSI: Credenziale decodificata da salvare:", credentialToSave);
+        } catch (decodeError) {
+          console.error("APP-EBSI: Errore nella decodifica del JWT:", decodeError);
+          // Fallback: salva come oggetto semplice
+          credentialToSave = {
+            jwt: credential,
+            type: type,
+            format: "jwt_vc",
+            receivedAt: new Date().toISOString(),
+          };
+        }
       } else {
         credentialToSave = {
           ...credential,

@@ -201,6 +201,10 @@ export default function PresentationRequest() {
       // Carica tutte le credenziali dal wallet
       const storedCredentials = await getStoredCredentials();
       console.log("APP-EBSI: Credenziali nel wallet:", storedCredentials);
+      console.log(
+        "APP-EBSI: Tipi di credenziali disponibili:",
+        storedCredentials.map((c) => ({ id: c.id, type: c.type || c.vc?.type }))
+      );
 
       if (!storedCredentials || storedCredentials.length === 0) {
         setError("Nessuna credenziale disponibile nel wallet");
@@ -210,6 +214,11 @@ export default function PresentationRequest() {
       // Input descriptors dalla presentation definition
       const inputDescriptors = presentationDefinition.input_descriptors || [];
       console.log("APP-EBSI: Input descriptors richiesti:", inputDescriptors);
+      console.log(
+        "APP-EBSI: Numero di descriptors:",
+        inputDescriptors.length,
+        "- Questo è un test per CT Qualification con tutte le credenziali"
+      );
 
       // Matcha le credenziali
       const matching = [];
@@ -221,10 +230,30 @@ export default function PresentationRequest() {
             for (const field of descriptor.constraints.fields) {
               const path = field.path?.[0];
               if (path && path.includes("type")) {
-                // Estrai il tipo richiesto
-                const requiredType = field.filter?.pattern || field.filter?.const;
+                // Estrai il tipo richiesto - supporta diversi formati del filter
+                let requiredType =
+                  field.filter?.contains?.const || // Per array contains
+                  field.filter?.const || // Per valore diretto
+                  field.filter?.pattern; // Per pattern regex
+
                 if (requiredType) {
-                  const credType = cred.type || cred.credentialSubject?.type || cred.vc?.type;
+                  // Cerca il tipo nella credenziale in diverse location possibili
+                  let credType = cred.type || cred.vc?.type;
+
+                  // Se la credenziale ha un _jwt, decodificalo per accedere al tipo
+                  if (!credType && cred._jwt) {
+                    try {
+                      const decoded = decodeJWT(cred._jwt);
+                      credType = decoded.payload?.vc?.type;
+                    } catch (e) {
+                      console.warn("Impossibile decodificare JWT per matching:", e);
+                    }
+                  }
+
+                  if (!credType) {
+                    return false;
+                  }
+
                   const typeArray = Array.isArray(credType) ? credType : [credType];
 
                   // Match con pattern o valore esatto
@@ -239,18 +268,40 @@ export default function PresentationRequest() {
         });
 
         if (credentialsForDescriptor.length > 0) {
+          console.log(
+            `APP-EBSI: Trovate ${credentialsForDescriptor.length} credenziali per descriptor "${descriptor.id}"`
+          );
           matching.push({
             descriptor,
             credentials: credentialsForDescriptor,
           });
+        } else {
+          console.warn(`APP-EBSI: NESSUNA credenziale trovata per descriptor "${descriptor.id}"`);
         }
       }
 
       console.log("APP-EBSI: Credenziali matching trovate:", matching);
+      console.log(`APP-EBSI: Matched ${matching.length} su ${inputDescriptors.length} descriptors`);
 
       if (matching.length === 0) {
         setError("Nessuna credenziale nel wallet corrisponde alla richiesta del verifier");
         return;
+      }
+
+      // Verifica se mancano delle credenziali richieste
+      if (matching.length < inputDescriptors.length) {
+        const missingDescriptors = inputDescriptors.filter(
+          (d) => !matching.some((m) => m.descriptor.id === d.id)
+        );
+        console.warn(
+          "APP-EBSI: Mancano credenziali per i seguenti descriptors:",
+          missingDescriptors.map((d) => d.id)
+        );
+        setError(
+          `Attenzione: trovate solo ${matching.length} su ${inputDescriptors.length} credenziali richieste. ` +
+            `Mancano: ${missingDescriptors.map((d) => d.id).join(", ")}`
+        );
+        // Non return - permettiamo comunque di procedere con le credenziali disponibili
       }
 
       // Flatten delle credenziali per visualizzazione
@@ -271,6 +322,7 @@ export default function PresentationRequest() {
           autoSelected.push(match.credentials[0].id);
         }
       }
+      console.log("APP-EBSI: Auto-selezionate", autoSelected.length, "credenziali");
       setSelectedCredentials(autoSelected);
     } catch (err) {
       console.error("APP-EBSI: Errore ricerca credenziali:", err);
@@ -297,6 +349,14 @@ export default function PresentationRequest() {
 
       // Recupera le credenziali selezionate
       const credentials = availableCredentials.filter((c) => selectedCredentials.includes(c.id));
+      console.log(
+        `APP-EBSI: Invio di ${credentials.length} credenziali al verifier:`,
+        credentials.map((c) => ({
+          id: c.id,
+          type: c.type || c.vc?.type,
+          descriptorId: c.descriptorId,
+        }))
+      );
 
       // Recupera il DID del wallet
       const didDocument = await getDIDDocument();
@@ -339,17 +399,34 @@ export default function PresentationRequest() {
    */
   const createVerifiablePresentation = async (credentials, holderDid, nonce, audience) => {
     try {
-      // Prepara le credenziali - se sono JWT estrai il contenuto, altrimenti usa l'oggetto
+      // Prepara le credenziali - usa il JWT originale se disponibile
       const verifiableCredentials = credentials.map((cred) => {
-        if (cred.jwt) {
-          // Se è salvata come JWT, usa direttamente il JWT
+        // Cerca il JWT in diverse possibili location
+        if (cred._jwt) {
+          // JWT salvato con underscore
+          console.log(`APP-EBSI: Usando JWT per credenziale ${cred.id}`);
+          return cred._jwt;
+        } else if (cred.jwt) {
+          // JWT senza underscore
+          console.log(`APP-EBSI: Usando jwt per credenziale ${cred.id}`);
           return cred.jwt;
         } else if (cred.credential) {
+          // Credenziale come oggetto
+          console.log(`APP-EBSI: Usando credential object per ${cred.id}`);
           return cred.credential;
         } else {
+          // Usa l'intera credenziale come oggetto
+          console.log(`APP-EBSI: Usando credenziale intera per ${cred.id}`);
           return cred;
         }
       });
+
+      console.log(
+        `APP-EBSI: Preparate ${verifiableCredentials.length} credenziali per VP`,
+        verifiableCredentials.map((vc, i) =>
+          typeof vc === "string" ? `JWT[${i}]` : `Object[${i}]`
+        )
+      );
 
       // Crea VP Token JWT firmato usando l'utility
       const vpJwt = await createVPToken(verifiableCredentials, holderDid, nonce, audience);
@@ -368,13 +445,16 @@ export default function PresentationRequest() {
   const createPresentationSubmission = (credentials, presentationDefinition) => {
     const descriptorMap = credentials.map((cred, index) => ({
       id: cred.descriptorId,
-      format: "jwt_vp", // o ldp_vp secondo il formato
+      format: "jwt_vp",
       path: "$",
       path_nested: {
-        format: "jwt_vc", // o ldp_vc
-        path: `$.verifiableCredential[${index}]`,
+        id: cred.descriptorId, // Aggiungi l'id anche nel path_nested
+        format: "jwt_vc",
+        path: `$.vp.verifiableCredential[${index}]`, // Path corretto secondo EBSI spec
       },
     }));
+
+    console.log("APP-EBSI: Descriptor map creato:", descriptorMap);
 
     return {
       id: crypto.randomUUID ? crypto.randomUUID() : `submission-${Date.now()}`,

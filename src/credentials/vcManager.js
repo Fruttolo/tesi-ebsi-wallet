@@ -132,15 +132,23 @@ export class VCManager {
    * @returns {Object} Metadata
    */
   getMetadata(credential) {
+    // Defensive checks per gestire credenziali con struttura non standard
+    const credentialSubject = credential.credentialSubject || {};
+    const type = credential.type || ["VerifiableCredential"];
+    const credentialTypes = Array.isArray(type) ? type : [type];
+
     return {
-      id: credential.id,
-      type: credential.type,
-      issuer: credential.issuer,
-      subject: credential.credentialSubject.id,
-      issuanceDate: credential.issuanceDate,
-      expirationDate: credential.expirationDate,
+      id: credential.id || "unknown",
+      type: credentialTypes,
+      issuer: credential.issuer || "unknown",
+      subject: credentialSubject.id || "unknown",
+      issuanceDate: credential.issuanceDate || "",
+      expirationDate: credential.expirationDate || null,
       expired: this.isExpired(credential),
-      credentialType: credential.type.filter((t) => t !== "VerifiableCredential")[0],
+      credentialType:
+        credentialTypes.filter((t) => t !== "VerifiableCredential")[0] ||
+        credentialTypes[0] ||
+        "VerifiableCredential",
     };
   }
 

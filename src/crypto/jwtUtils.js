@@ -1,5 +1,4 @@
 import { p256 } from "@noble/curves/nist.js";
-import { sha256 } from "@noble/hashes/sha2.js";
 import { getPrivateKey } from "../storage/didStorage.js";
 import { getKeyIdFromDID } from "../identity/didManager.js";
 
@@ -37,14 +36,15 @@ export async function signJWT(header, payload) {
 
     // Converti signing input in bytes
     const messageBytes = new TextEncoder().encode(signingInput);
-    const messageHash = sha256(messageBytes);
 
     // Converti chiave privata JWK in bytes
     const privateKeyBytes = base64urlToBytes(privateKeyJwk.d);
 
     // Firma con P-256 in formato raw (IEEE P1363 r+s per ES256)
     // In @noble/curves v2.0.1, sign() returns a Signature object
-    const signatureObj = p256.sign(messageHash, privateKeyBytes);
+    const signatureObj = p256.sign(messageBytes, privateKeyBytes, {
+      prehash: true,
+    });
 
     // Debug: check what methods are available
     console.log("APP-EBSI: Signature object type:", typeof signatureObj);
@@ -117,7 +117,6 @@ export async function verifyJWT(jwt, publicKeyJwk) {
     // Ricostruisci signing input
     const signingInput = `${encodedHeader}.${encodedPayload}`;
     const messageBytes = new TextEncoder().encode(signingInput);
-    const messageHash = sha256(messageBytes);
 
     // Decode signature
     const signature = base64urlToBytes(encodedSignature);
@@ -126,7 +125,9 @@ export async function verifyJWT(jwt, publicKeyJwk) {
     const publicKeyBytes = jwkToPublicKeyBytes(publicKeyJwk);
 
     // Verifica signature
-    const isValid = p256.verify(signature, messageHash, publicKeyBytes);
+    const isValid = p256.verify(signature, messageBytes, publicKeyBytes, {
+      prehash: true,
+    });
 
     if (!isValid) {
       throw new Error("Invalid signature");

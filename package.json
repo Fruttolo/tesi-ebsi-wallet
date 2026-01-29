@@ -27,10 +27,7 @@
     "cap:android": "cap open android",
     "android:build": "cd android && ./gradlew assembleRelease",
     "android:build:debug": "cd android && ./gradlew assembleDebug",
-    "android:clean": "cd android && ./gradlew clean",
-    "security:scan": "snyk test",
-    "docs:generate": "jsdoc -c jsdoc.json",
-    "analyze": "vite build --mode analyze"
+    "android:clean": "cd android && ./gradlew clean"
   },
   "dependencies": {
     "@capacitor-community/barcode-scanner": "^4.0.1",

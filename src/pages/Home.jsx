@@ -59,6 +59,7 @@ export default function Home() {
     if (!did) return;
 
     try {
+      console.log("APP-EBSI: Copia del DID negli appunti:", did);
       await navigator.clipboard.writeText(did);
       await Toast.show({
         text: "DID copiato negli appunti",
