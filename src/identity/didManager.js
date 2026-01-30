@@ -1,6 +1,4 @@
 import { util } from "@cef-ebsi/key-did-resolver";
-import bs58 from "bs58";
-import { sha256 } from "@noble/hashes/sha2.js";
 
 // Re-export funzioni di storage per convenienza
 export { getDIDDocument, saveDIDDocument, getDID, saveDID } from "../storage/didStorage.js";
@@ -23,25 +21,6 @@ export function generateDID(publicKeyJwk) {
   }
 
   return did;
-}
-
-/**
- * Genera DID did:ebsi alternativo dal publicKey (hash-based)
- * Questo è un metodo alternativo per generare DID ebsi
- * @param {Uint8Array} publicKey - Chiave pubblica
- * @returns {string} DID in formato did:ebsi:z...
- */
-export function generateEBSIDID(publicKey) {
-  // Hash della chiave pubblica
-  const hash = sha256(publicKey);
-
-  // Prendi primi 20 bytes
-  const identifier = hash.slice(0, 20);
-
-  // Encoding base58btc
-  const encoded = bs58.encode(identifier);
-
-  return `did:ebsi:z${encoded}`;
 }
 
 /**

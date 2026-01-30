@@ -1,4 +1,4 @@
-import { Preferences } from "@capacitor/preferences";
+import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 
 const DID_KEY = "wallet_did";
 const DID_DOC_KEY = "wallet_did_document";
@@ -13,7 +13,7 @@ export async function saveDID(did) {
   if (!did) {
     throw new Error("DID is required");
   }
-  await Preferences.set({ key: DID_KEY, value: did });
+  await SecureStoragePlugin.set({ key: DID_KEY, value: did });
 }
 
 /**
@@ -21,7 +21,7 @@ export async function saveDID(did) {
  * @returns {Promise<string|null>} DID o null
  */
 export async function getDID() {
-  const result = await Preferences.get({ key: DID_KEY });
+  const result = await SecureStoragePlugin.get({ key: DID_KEY });
   return result.value;
 }
 
@@ -33,7 +33,7 @@ export async function saveDIDDocument(didDocument) {
   if (!didDocument) {
     throw new Error("DID Document is required");
   }
-  await Preferences.set({
+  await SecureStoragePlugin.set({
     key: DID_DOC_KEY,
     value: JSON.stringify(didDocument),
   });
@@ -44,7 +44,7 @@ export async function saveDIDDocument(didDocument) {
  * @returns {Promise<Object|null>} DID Document o null
  */
 export async function getDIDDocument() {
-  const result = await Preferences.get({ key: DID_DOC_KEY });
+  const result = await SecureStoragePlugin.get({ key: DID_DOC_KEY });
   return result.value ? JSON.parse(result.value) : null;
 }
 
@@ -58,12 +58,12 @@ export async function saveKeys(privateJwk, publicJwk) {
     throw new Error("Both private and public keys are required");
   }
 
-  await Preferences.set({
+  await SecureStoragePlugin.set({
     key: PRIVATE_KEY_KEY,
     value: JSON.stringify(privateJwk),
   });
 
-  await Preferences.set({
+  await SecureStoragePlugin.set({
     key: PUBLIC_KEY_KEY,
     value: JSON.stringify(publicJwk),
   });
@@ -74,7 +74,7 @@ export async function saveKeys(privateJwk, publicJwk) {
  * @returns {Promise<Object|null>} Chiave privata o null
  */
 export async function getPrivateKey() {
-  const result = await Preferences.get({ key: PRIVATE_KEY_KEY });
+  const result = await SecureStoragePlugin.get({ key: PRIVATE_KEY_KEY });
   return result.value ? JSON.parse(result.value) : null;
 }
 
@@ -83,7 +83,7 @@ export async function getPrivateKey() {
  * @returns {Promise<Object|null>} Chiave pubblica o null
  */
 export async function getPublicKey() {
-  const result = await Preferences.get({ key: PUBLIC_KEY_KEY });
+  const result = await SecureStoragePlugin.get({ key: PUBLIC_KEY_KEY });
   return result.value ? JSON.parse(result.value) : null;
 }
 
@@ -100,30 +100,10 @@ export async function isWalletInitialized() {
  * Cancella tutti i dati DID
  */
 export async function clearDIDData() {
-  await Preferences.remove({ key: DID_KEY });
-  await Preferences.remove({ key: DID_DOC_KEY });
-  await Preferences.remove({ key: PRIVATE_KEY_KEY });
-  await Preferences.remove({ key: PUBLIC_KEY_KEY });
-}
-
-/**
- * Esporta tutti i dati del wallet (per backup)
- * ATTENZIONE: include chiavi private!
- * @returns {Promise<Object>} Oggetto con tutti i dati
- */
-export async function exportWalletData() {
-  const did = await getDID();
-  const didDoc = await getDIDDocument();
-  const privateKey = await getPrivateKey();
-  const publicKey = await getPublicKey();
-
-  return {
-    did,
-    didDocument: didDoc,
-    privateKey,
-    publicKey,
-    exportedAt: new Date().toISOString(),
-  };
+  await SecureStoragePlugin.remove({ key: DID_KEY });
+  await SecureStoragePlugin.remove({ key: DID_DOC_KEY });
+  await SecureStoragePlugin.remove({ key: PRIVATE_KEY_KEY });
+  await SecureStoragePlugin.remove({ key: PUBLIC_KEY_KEY });
 }
 
 /**

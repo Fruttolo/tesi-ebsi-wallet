@@ -17,8 +17,9 @@ import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { Toast } from "@capacitor/toast";
-import PageBase from "../components/PageBase";
+import { Clipboard } from "@capacitor/clipboard";
 import { getDID } from "../storage/didStorage";
+import { vcManager } from "../credentials/vcManager";
 
 /**
  * Home page principale del wallet - Dashboard mobile-optimized
@@ -46,8 +47,8 @@ export default function Home() {
       const userDid = await getDID();
       setDid(userDid || "");
 
-      // TODO: Caricare numero credenziali dal vcManager
-      setCredentialsCount(0);
+      const credentialsNumber = await vcManager.countCredentials();
+      setCredentialsCount(credentialsNumber);
     } catch (error) {
       console.error("APP-EBSI: Errore caricamento info wallet:", error);
     }
@@ -59,8 +60,9 @@ export default function Home() {
     if (!did) return;
 
     try {
-      console.log("APP-EBSI: Copia del DID negli appunti:", did);
-      await navigator.clipboard.writeText(did);
+      await Clipboard.write({
+        string: did,
+      });
       await Toast.show({
         text: "DID copiato negli appunti",
         duration: "short",
@@ -84,6 +86,8 @@ export default function Home() {
         cursor: "pointer",
         transition: "all 0.2s ease",
         height: "100%",
+        minHeight: "40vw",
+        minWidth: "40vw",
         background:
           "linear-gradient(135deg, rgba(96, 165, 250, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%)",
         border: "1px solid rgba(96, 165, 250, 0.2)",
@@ -99,25 +103,28 @@ export default function Home() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          justifyContent: "center",
           textAlign: "center",
-          py: 3,
+          height: "100%",
+          py: 2.5,
+          px: 1.5,
         }}
       >
         <Avatar
           sx={{
             width: 56,
             height: 56,
-            mb: 2,
+            mb: 1.5,
             bgcolor: "transparent",
             border: `2px solid ${color}`,
           }}
         >
           <Icon sx={{ fontSize: 32, color }} />
         </Avatar>
-        <Typography variant="h6" fontWeight={600} gutterBottom>
+        <Typography variant="h6" fontWeight={600} gutterBottom sx={{ mb: 0.5, fontSize: "1rem" }}>
           {title}
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
           {subtitle}
         </Typography>
       </CardContent>
@@ -125,7 +132,7 @@ export default function Home() {
   );
 
   return (
-    <PageBase title="Il Tuo Wallet">
+    <>
       {/* Messaggio di errore se presente */}
       {error && (
         <Alert severity="error" onClose={() => setError("")} sx={{ mb: 3 }}>
@@ -176,7 +183,7 @@ export default function Home() {
       </Card>
 
       {/* Azioni Rapide - 2x2 grid per mobile */}
-      <Grid container spacing={2}>
+      <Grid container spacing={2} display={"flex"} justifyContent={"center"}>
         <Grid item xs={6}>
           <QuickActionCard
             icon={VerifiedUserIcon}
@@ -210,21 +217,57 @@ export default function Home() {
         <Grid item xs={6}>
           <Card
             sx={{
+              cursor: "pointer",
+              transition: "all 0.2s ease",
               height: "100%",
+              minHeight: "40vw",
+              minWidth: "40vw",
               background:
-                "linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)",
-              border: "1px solid rgba(16, 185, 129, 0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+                "linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%)",
+              border: "1px solid rgba(16, 185, 129, 0.2)",
+              "&:active": {
+                transform: "scale(0.97)",
+              },
+              touchAction: "manipulation",
             }}
+            onClick={() => navigate("/credentials")}
           >
-            <CardContent sx={{ textAlign: "center", py: 2 }}>
-              <Typography variant="h3" fontWeight={700} color="success.main">
-                {credentialsCount}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
+            <CardContent
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                height: "100%",
+                py: 2.5,
+                px: 1.5,
+              }}
+            >
+              <Avatar
+                sx={{
+                  width: 56,
+                  height: 56,
+                  mb: 1.5,
+                  bgcolor: "transparent",
+                  border: "2px solid",
+                  borderColor: "success.main",
+                }}
+              >
+                <Typography variant="h4" fontWeight={700} color="success.main">
+                  {credentialsCount}
+                </Typography>
+              </Avatar>
+              <Typography
+                variant="h6"
+                fontWeight={600}
+                gutterBottom
+                sx={{ mb: 0.5, fontSize: "1rem" }}
+              >
                 Credenziali attive
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
+                Gestisci le tue VC
               </Typography>
             </CardContent>
           </Card>
@@ -249,6 +292,6 @@ export default function Home() {
           </Typography>
         </CardContent>
       </Card>
-    </PageBase>
+    </>
   );
 }

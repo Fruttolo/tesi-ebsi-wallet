@@ -5,7 +5,6 @@ import { Container, Box, Typography, IconButton, Alert, CircularProgress } from 
 import CloseIcon from "@mui/icons-material/Close";
 import FlashlightOnIcon from "@mui/icons-material/FlashlightOn";
 import FlashlightOffIcon from "@mui/icons-material/FlashlightOff";
-import PageBase from "../components/PageBase";
 
 /**
  * Pagina dedicata alla scansione QR con fotocamera sempre visibile
@@ -82,29 +81,23 @@ export default function CameraScanner() {
 
   const handleScanResult = async (content) => {
     await stopScanning();
-    console.log("APP-EBSI: Contenuto scansionato:", content);
 
     try {
-      // 1. Gestisci OpenID4VCI Credential Offering
-      if (content.startsWith("openid-credential-offer://")) {
-        await handleCredentialOffer(content);
+      if (
+        content.startsWith("openid-credential-offer://") ||
+        content.startsWith("openid4vp://") ||
+        content.startsWith("openid://")
+      ) {
+        navigate("/accept-action", {
+          state: {
+            uri: content,
+            type: "openid-credential-offer",
+          },
+        });
         return;
       }
 
-      // 2. Gestisci OpenID4VP Presentation Request
-      if (content.startsWith("openid4vp://") || content.startsWith("openid://")) {
-        await handlePresentationRequest(content);
-        return;
-      }
-
-      // 3. Prova a parsare come JSON
-      try {
-        const data = JSON.parse(content);
-        processScannedData(data);
-      } catch (e) {
-        // 4. Se non è JSON, tratta come testo o URL generico
-        processScannedData({ raw: content, type: "text" });
-      }
+      throw new Error("QR code non riconosciuto come Credential Offer o Presentation Request");
     } catch (error) {
       console.error("APP-EBSI: Errore processamento QR:", error);
       setError(error.message || "Errore nel processamento del QR code");
@@ -112,88 +105,6 @@ export default function CameraScanner() {
       navigate("/scan-qr", {
         state: {
           error: error.message || "Errore nel processamento del QR code",
-        },
-      });
-    }
-  };
-
-  /**
-   * Gestisce un Credential Offering secondo OpenID4VCI
-   * Riferimento: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html
-   */
-  const handleCredentialOffer = async (uri) => {
-    console.log("APP-EBSI: Credential Offer URI:", uri);
-
-    try {
-      // Estrai i parametri dall'URI
-      const url = new URL(uri);
-      const credentialOfferUri = url.searchParams.get("credential_offer_uri");
-      const credentialOfferParam = url.searchParams.get("credential_offer");
-
-      let credentialOffer;
-
-      // Caso 1: credential_offer_uri - scarica l'offer da un endpoint
-      if (credentialOfferUri) {
-        console.log("APP-EBSI: Scaricamento Credential Offer da:", credentialOfferUri);
-        const response = await fetch(credentialOfferUri);
-        if (!response.ok) {
-          throw new Error(`Errore nel download del credential offer: ${response.statusText}`);
-        }
-        credentialOffer = await response.json();
-      }
-      // Caso 2: credential_offer inline - già nell'URI (decodificato)
-      else if (credentialOfferParam) {
-        credentialOffer = JSON.parse(decodeURIComponent(credentialOfferParam));
-      } else {
-        throw new Error("Credential offer non trovato nell'URI");
-      }
-
-      console.log("APP-EBSI: Credential Offer ricevuto:", credentialOffer);
-
-      // Naviga alla pagina di gestione credential offer con i dati
-      navigate("/credential-offer", {
-        state: {
-          credentialOffer,
-          sourceUri: uri,
-        },
-      });
-    } catch (error) {
-      console.error("APP-EBSI: Errore gestione Credential Offer:", error);
-      throw new Error(`Errore nel processamento del credential offer: ${error.message}`);
-    }
-  };
-
-  /**
-   * Gestisce una Presentation Request secondo OpenID4VP
-   */
-  const handlePresentationRequest = async (uri) => {
-    console.log("APP-EBSI: Presentation Request URI:", uri);
-
-    // Naviga alla pagina di gestione presentation request
-    navigate("/presentation-request", {
-      state: {
-        uri,
-        type: "openid4vp",
-      },
-    });
-  };
-
-  const processScannedData = (data) => {
-    console.log("APP-EBSI: QR Code scansionato:", data);
-
-    // Determina il tipo di QR code e naviga di conseguenza
-    if (data.type === "verification-request") {
-      navigate("/verification-request", { state: { request: data } });
-    } else if (data.type === "credential-offer") {
-      navigate("/add-credential", { state: { offer: data } });
-    } else if (data.type === "selective-disclosure") {
-      navigate("/selective-presentation", { state: { request: data } });
-    } else {
-      // Per QR generici, torna alla pagina scan con i dati
-      navigate("/scan-qr", {
-        state: {
-          scannedData: data,
-          success: true,
         },
       });
     }
@@ -214,7 +125,7 @@ export default function CameraScanner() {
   };
 
   return (
-    <PageBase title="" hideBackButton>
+    <Container maxWidth="sm" sx={{ py: 3, position: "relative", height: "100vh" }}>
       <Box
         sx={{
           position: "fixed",
@@ -380,6 +291,6 @@ export default function CameraScanner() {
           </Box>
         )}
       </Box>
-    </PageBase>
+    </Container>
   );
 }

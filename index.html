@@ -14,6 +14,12 @@
     <meta name="theme-color" content="#0f172a" />
 
     <!-- Content Security Policy -->
+    <!-- 
+        TODO: togliere
+        cript-src 'self' 'unsafe-inline' 'unsafe-eval';
+        style-src 'self' 'unsafe-inline';
+        mettere invece nonces casuali per produzione
+     -->
     <meta
       http-equiv="Content-Security-Policy"
       content="
@@ -21,7 +27,7 @@
 				script-src 'self' 'unsafe-inline' 'unsafe-eval';
 				style-src 'self' 'unsafe-inline';
 				img-src 'self' data: https:;
-				connect-src 'self' https://api-pilot.ebsi.eu https://api-conformance.ebsi.eu https://api.ebsi.eu;
+				connect-src 'self' https://*;
 				font-src 'self' data:;
 				object-src 'none';
 				base-uri 'self';

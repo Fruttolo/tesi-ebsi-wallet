@@ -5,24 +5,9 @@ import "./styles/styles.css";
 import "./styles/animations.css";
 import "./styles/highContrast.css";
 import { BrowserRouter } from "react-router-dom";
-import { preventPullToRefresh } from "./utils/mobileUtils";
 
 import { Buffer } from "buffer";
 window.Buffer = Buffer;
-
-// Inizializza ottimizzazioni mobile
-preventPullToRefresh();
-
-// Previene zoom su doppio tap
-document.addEventListener(
-  "touchstart",
-  (e) => {
-    if (e.touches.length > 1) {
-      e.preventDefault();
-    }
-  },
-  { passive: false }
-);
 
 // Gestione viewport per notch/safe areas
 if (window.visualViewport) {

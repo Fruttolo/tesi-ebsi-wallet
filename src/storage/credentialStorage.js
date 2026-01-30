@@ -1,4 +1,4 @@
-import { Preferences } from "@capacitor/preferences";
+import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { v4 as uuidv4 } from "uuid";
 
 const CREDENTIALS_KEY = "wallet_credentials";
@@ -23,7 +23,7 @@ export async function saveCredential(credential) {
 
   credentials.push(credentialWithId);
 
-  await Preferences.set({
+  await SecureStoragePlugin.set({
     key: CREDENTIALS_KEY,
     value: JSON.stringify(credentials),
   });
@@ -36,8 +36,13 @@ export async function saveCredential(credential) {
  * @returns {Promise<Array>} Lista credenziali
  */
 export async function getAllCredentials() {
-  const result = await Preferences.get({ key: CREDENTIALS_KEY });
-  return result.value ? JSON.parse(result.value) : [];
+  try {
+    const result = await SecureStoragePlugin.get({ key: CREDENTIALS_KEY });
+    return result.value ? JSON.parse(result.value) : [];
+  } catch (error) {
+    // Se la chiave non esiste ancora, ritorna array vuoto
+    return [];
+  }
 }
 
 /**
@@ -69,7 +74,7 @@ export async function updateCredential(id, updatedCredential) {
 
   if (index !== -1) {
     credentials[index] = updatedCredential;
-    await Preferences.set({
+    await SecureStoragePlugin.set({
       key: CREDENTIALS_KEY,
       value: JSON.stringify(credentials),
     });
@@ -84,7 +89,7 @@ export async function deleteCredential(id) {
   const credentials = await getAllCredentials();
   const filtered = credentials.filter((c) => c.id !== id);
 
-  await Preferences.set({
+  await SecureStoragePlugin.set({
     key: CREDENTIALS_KEY,
     value: JSON.stringify(filtered),
   });
@@ -94,7 +99,7 @@ export async function deleteCredential(id) {
  * Elimina tutte le credenziali
  */
 export async function clearAllCredentials() {
-  await Preferences.remove({ key: CREDENTIALS_KEY });
+  await SecureStoragePlugin.remove({ key: CREDENTIALS_KEY });
 }
 
 /**

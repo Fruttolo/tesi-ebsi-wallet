@@ -3,7 +3,7 @@ import {
   mnemonicToSeed as mnemonicToSeedScure,
   validateMnemonic as validateMnemonicScure,
 } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { wordlist } from "@scure/bip39/wordlists/italian.js";
 
 /**
  * Genera una nuova seed phrase BIP39

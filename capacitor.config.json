@@ -1,6 +1,6 @@
 {
-  "appId": "io.tesi.ebsi.wallet",
-  "appName": "tesi-ebsi-wallet-app",
+  "appId": "io.ebsi.wallet",
+  "appName": "ebsi-wallet",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {

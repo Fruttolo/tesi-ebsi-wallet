@@ -90,6 +90,7 @@ export default function Onboarding() {
 
       <Box sx={{ display: "flex", justifyContent: "space-between", mt: 3 }}>
         <Button
+          variant="contained"
           onClick={handleSkip}
           disabled={activeStep === steps.length - 1}
           aria-label="Salta onboarding"

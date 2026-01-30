@@ -6,7 +6,6 @@ import { mnemonicToSeed, validateMnemonic } from "../crypto/seedManager.js";
 import { derivePrivateKey, createJWK } from "../crypto/keyDerivation.js";
 import { generateDID, createDIDDocument } from "../identity/didManager.js";
 import { saveDID, saveDIDDocument, saveKeys } from "../storage/didStorage.js";
-import PageBase from "../components/PageBase.jsx";
 
 export default function ImportWallet() {
   const navigate = useNavigate();
@@ -77,7 +76,6 @@ export default function ImportWallet() {
       setMnemonic(""); // Pulisci per sicurezza
 
       localStorage.setItem("wallet_initialized", "true");
-      navigate("/home");
     } catch (err) {
       setError("Errore durante l'importazione: " + err.message);
     } finally {
@@ -86,85 +84,84 @@ export default function ImportWallet() {
   };
 
   return (
-    <PageBase title="Importa Wallet">
-      <Container maxWidth="md" sx={{ py: 4 }}>
-        <Typography variant="h4" gutterBottom align="center">
-          Importa Wallet Esistente
-        </Typography>
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Typography variant="h4" gutterBottom align="center">
+        Importa Wallet Esistente
+      </Typography>
 
-        <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 4 }}>
-          Recupera il tuo wallet usando la seed phrase (12 o 24 parole)
-        </Typography>
+      <Typography variant="body2" color="text.secondary" align="center" sx={{ mb: 4 }}>
+        Recupera il tuo wallet usando la seed phrase <br /> (12 parole)
+      </Typography>
 
-        {!success ? (
-          <Paper elevation={3} sx={{ p: 4 }}>
-            <Alert severity="warning" sx={{ mb: 3 }}>
-              <Typography variant="body2">
-                <strong>Importante:</strong> Inserisci la tua seed phrase solo su questo
-                dispositivo. Non condividerla mai e assicurati di essere in un luogo privato.
-              </Typography>
+      {!success ? (
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="body2">
+              <strong>Importante:</strong> Inserisci la tua seed phrase solo su questo dispositivo.
+              Non condividerla mai e assicurati di essere in un luogo privato.
+            </Typography>
+          </Alert>
+
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="Seed Phrase (12 o 24 parole)"
+            placeholder="parola1 parola2 parola3 ..."
+            value={mnemonic}
+            onChange={handleMnemonicChange}
+            error={validationErrors.length > 0}
+            helperText={
+              validationErrors.length > 0
+                ? validationErrors.join(". ")
+                : "Inserisci le parole separate da spazi"
+            }
+            sx={{ mb: 3 }}
+          />
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
             </Alert>
+          )}
 
-            <TextField
-              fullWidth
-              multiline
-              rows={4}
-              label="Seed Phrase (12 o 24 parole)"
-              placeholder="parola1 parola2 parola3 ..."
-              value={mnemonic}
-              onChange={handleMnemonicChange}
-              error={validationErrors.length > 0}
-              helperText={
-                validationErrors.length > 0
-                  ? validationErrors.join(". ")
-                  : "Inserisci le parole separate da spazi"
-              }
-              sx={{ mb: 3 }}
-            />
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="outlined" fullWidth href="/">
-                Annulla
-              </Button>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={handleImport}
-                disabled={loading || !mnemonic.trim() || validationErrors.length > 0}
-              >
-                {loading ? "Importazione in corso..." : "Importa Wallet"}
-              </Button>
-            </Box>
-
-            <Box sx={{ mt: 3, textAlign: "center" }}>
-              <Typography variant="body2" color="text.secondary">
-                Non hai ancora un wallet?{" "}
-                <Button href="/wallet-setup" size="small">
-                  Crea Nuovo Wallet
-                </Button>
-              </Typography>
-            </Box>
-          </Paper>
-        ) : (
-          <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
-            <Typography variant="h5" color="success.main" gutterBottom>
-              ✓ Wallet importato con successo!
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 3 }}>
-              Il tuo wallet è stato ripristinato ed è pronto per essere utilizzato.
-            </Typography>
-            <Button variant="contained" href="/">
-              Vai alla Home
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, mb: 2 }}>
+            <Button variant="contained" color="inherit" fullWidth href="/" sx={{ py: 1.2 }}>
+              Annulla
             </Button>
-          </Paper>
-        )}
-      </Container>
-    </PageBase>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={handleImport}
+              disabled={loading || !mnemonic.trim() || validationErrors.length > 0}
+              sx={{ py: 1.2 }}
+            >
+              {loading ? "Importazione in corso..." : "Importa Wallet"}
+            </Button>
+          </Box>
+
+          <Box sx={{ mt: 3, textAlign: "center" }}>
+            <Typography variant="body2" color="text.secondary">
+              Non hai ancora un wallet?{" "}
+              <Button href="/wallet-setup" size="small">
+                Crea Nuovo Wallet
+              </Button>
+            </Typography>
+          </Box>
+        </Paper>
+      ) : (
+        <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
+          <Typography variant="h5" color="success.main" gutterBottom>
+            ✓ Wallet importato con successo!
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            Il tuo wallet è stato ripristinato ed è pronto per essere utilizzato.
+          </Typography>
+          <Button variant="contained" href="/home">
+            Vai alla Home
+          </Button>
+        </Paper>
+      )}
+    </Container>
   );
 }
