@@ -20,5 +20,10 @@ package-lock.json
 
 **/conformance
 
+# Android signing keys
+*.keystore
+*.jks
+key.properties
+
 # Snyk Security Extension - AI Rules (auto-generated)
 .github/instructions/snyk_rules.instructions.md
