@@ -63,6 +63,12 @@ export default defineConfig(({ mode }) => ({
     global: "globalThis",
   },
 
+  server: {
+    host: "0.0.0.0", // Consenti connessioni da qualsiasi interfaccia di rete
+    port: 5173,
+    strictPort: true,
+  },
+
   build: {
     // Minification settings
     minify: "terser",
