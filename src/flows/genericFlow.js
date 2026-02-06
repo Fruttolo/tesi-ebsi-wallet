@@ -24,7 +24,20 @@ export const discoverOpenID = async (uri) => {
 
     // 3. Ottieni well-known della configurazione
     const wellKnownConfiguration = await getWellKnownConfiguration(urlConfiguration);
-    return true;
+
+    if (!wellKnownConfiguration.authorization_endpoint) {
+      throw new Error("Nessun authorization_endpoint trovato nella configurazione dell'issuer");
+    }
+
+    const response = {
+      requiresPreAuth:
+        !!credentialOffer.grants?.["urn:ietf:params:oauth:grant-type:pre-authorized_code"]
+          ?.user_pin_required || false,
+      issuerName: credentialOffer.credential_issuer || "",
+      credentialOffer: credentialOffer.credentials || [],
+      urlAuthorization: wellKnownConfiguration.authorization_endpoint || "",
+    };
+    return response;
   } catch (error) {
     throw new Error("Errore nel flusso di discovery OpenID: " + error.message);
   }
@@ -33,11 +46,12 @@ export const discoverOpenID = async (uri) => {
 export const getCredentialOffer = async (uri) => {
   // Implementazione del flusso di discovery
   const url = new URL(uri);
+  console.log("APP-EBSI: Parsing credential offer from URL:", url.toString());
   const credentialOfferUri = url.searchParams.get("credential_offer_uri");
 
   if (credentialOfferUri) {
     const response = await CapacitorHttp.get({ url: credentialOfferUri });
-    if (response.status !== 200) {
+    if (response.status < 200 || response.status >= 300) {
       throw new Error(`Errore nel download del credential offer: ${response.statusText}`);
     }
 

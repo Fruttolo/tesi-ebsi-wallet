@@ -121,7 +121,7 @@ export default function CameraScanner() {
 
   const handleClose = async () => {
     await stopScanning();
-    navigate("/scan-qr");
+    navigate("/home", { replace: true });
   };
 
   return (

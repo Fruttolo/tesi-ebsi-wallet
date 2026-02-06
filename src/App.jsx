@@ -12,13 +12,14 @@ import ScanQR from "./pages/ScanQR";
 import CameraScanner from "./pages/CameraScanner";
 import { AcceptAction } from "./pages/AcceptAction";
 import { App as CapacitorApp } from "@capacitor/app";
+import CredentialOffer from "./pages/CredentialOffer";
 /* 
 import LoadingScreen from "./components/LoadingScreen";
 import CredentialsList from "./pages/CredentialsList";
-import CredentialOffer from "./pages/CredentialOffer";
 import PresentationRequest from "./pages/PresentationRequest";
 import AddCredential from "./pages/AddCredential";
-import Settings from "./pages/Settings"; */
+import Settings from "./pages/Settings"; 
+*/
 
 /**
  * Componente principale dell'app con routing e tema mobile-optimized
@@ -131,11 +132,13 @@ export default function App() {
           <Route path="/scan-qr" element={<ScanQR />} />
           <Route path="/camera-scanner" element={<CameraScanner />} />
           <Route path="/accept-action" element={<AcceptAction />} />
-          {/* <Route path="/credentials" element={<CredentialsList />} />
-		  <Route path="/credential-offer" element={<CredentialOffer />} />
-		  <Route path="/presentation-request" element={<PresentationRequest />} />
-		  <Route path="/add-credential" element={<AddCredential />} />
-		  <Route path="/settings" element={<Settings />} /> */}
+          <Route path="/credential-offer" element={<CredentialOffer />} />
+          {/* 
+          <Route path="/credentials" element={<CredentialsList />} />
+          <Route path="/presentation-request" element={<PresentationRequest />} />
+          <Route path="/add-credential" element={<AddCredential />} />
+          <Route path="/settings" element={<Settings />} /> 
+          */}
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />

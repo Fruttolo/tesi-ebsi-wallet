@@ -94,7 +94,7 @@ export default function ImportWallet() {
       </Typography>
 
       {!success ? (
-        <Paper elevation={3} sx={{ p: 4 }}>
+        <Paper elevation={3} sx={{ p: 2 }}>
           <Alert severity="warning" sx={{ mb: 3 }}>
             <Typography variant="body2">
               <strong>Importante:</strong> Inserisci la tua seed phrase solo su questo dispositivo.
