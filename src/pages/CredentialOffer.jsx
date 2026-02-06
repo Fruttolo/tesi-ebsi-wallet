@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 
-export const CredentialOffer = () => {
+export default function CredentialOffer() {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -23,4 +23,4 @@ export const CredentialOffer = () => {
   }, []);
 
   return <></>;
-};
+}
